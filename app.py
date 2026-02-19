@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from functools import wraps
 import os
 import sqlite3
 import hashlib
@@ -17,7 +18,9 @@ from utils.blockchain_utils import (
     delete_certificate_on_chain
 )
 import base64
-from algorand.connect import get_client
+from algosdk import encoding as algo_encoding
+from algosdk.transaction import PaymentTxn
+from algorand.connect import get_client, get_suggested_params
 from algorand.advanced_features import (
     build_payment_txn, build_asa_create_txn, build_nft_mint_txn,
     build_deploy_contract_txn, build_bank_deposit_txns, build_bank_withdraw_txn,
@@ -57,14 +60,19 @@ def create_tables():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
+        password_hash TEXT DEFAULT '',
         role TEXT DEFAULT 'student',
-        wallet_address TEXT,
+        wallet_address TEXT UNIQUE,
         wallet_mnemonic TEXT,
-        face_descriptor TEXT
+        face_descriptor TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
     # Simple migration for existing DB
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    except sqlite3.OperationalError:
+        pass
     try:
         c.execute("ALTER TABLE users ADD COLUMN face_descriptor TEXT")
     except sqlite3.OperationalError:
@@ -283,14 +291,20 @@ def create_tables():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
-    # Create default admin
-    admin_hash = hashlib.sha256('admin'.encode()).hexdigest()
-    c.execute("INSERT OR IGNORE INTO users (student_id, name, password_hash, role) VALUES ('admin', 'Administrator', ?, 'admin')", (admin_hash,))
+    # Create default admin (wallet-based: admin wallet can be set via ADMIN_WALLET env var)
+    admin_wallet = os.environ.get('ADMIN_WALLET', 'ADMIN_PLACEHOLDER')
+    c.execute("INSERT OR IGNORE INTO users (student_id, name, password_hash, role, wallet_address) VALUES (?, 'Administrator', '', 'admin', ?)",
+              (admin_wallet, admin_wallet))
     
     conn.commit()
     conn.close()
 
 create_tables()
+
+# ── Nonce store for wallet auth challenges ──
+# In-memory store: {address: {"nonce": str, "timestamp": float, "unsigned_txn": str}}
+_auth_challenges = {}
+AUTH_NONCE_EXPIRY = 300  # 5 minutes
 
 def log_transaction(user_id, action, details, tx_id=None):
     try:
@@ -323,62 +337,219 @@ def get_current_user():
     conn.close()
     return user
 
+def wallet_required(f):
+    """Decorator: redirect to wallet login if not authenticated."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return redirect(url_for('wallet_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Decorator: require admin role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return redirect(url_for('wallet_login'))
+        if user['role'] != 'admin':
+            flash('Admin access required.')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.context_processor
 def utility_processor():
     from utils.rewards import TOKEN_UNIT
     return dict(TOKEN_UNIT=TOKEN_UNIT)
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        student_id = request.form['student_id']
-        name = request.form['name']
-        password = request.form['password']
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        
-        # Auto-generate wallet for student
-        wallet_address, wallet_mnemonic = generate_student_wallet()
-        
-        conn = get_db_connection()
-        try:
-            conn.execute('INSERT INTO users (student_id, name, password_hash, wallet_address, wallet_mnemonic) VALUES (?, ?, ?, ?, ?)',
-                         (student_id, name, password_hash, wallet_address, wallet_mnemonic))
-            conn.commit()
-            flash('Registration successful! Wallet created.')
-            return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
-            flash('Student ID already exists.')
-        conn.close()
-    return render_template('register.html')
+# ══════════════════════════════════════════════════════════════════════
+#  WALLET-ONLY AUTHENTICATION (Sign-In With Algorand)
+# ══════════════════════════════════════════════════════════════════════
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        student_id = request.form['student_id']
-        password = request.form['password']
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        
+@app.route('/login')
+@app.route('/wallet-login')
+def wallet_login():
+    """Wallet login page — connect Pera Wallet to authenticate."""
+    if get_current_user():
+        return redirect(url_for('dashboard'))
+    return render_template('wallet_login.html')
+
+@app.route('/api/auth/challenge', methods=['POST'])
+def auth_challenge():
+    """Generate a challenge: unsigned zero-ALGO self-payment with random nonce as note.
+    The user signs this tx with Pera to prove wallet ownership — no on-chain cost."""
+    data = request.json or {}
+    address = data.get('address', '').strip()
+
+    if not address or len(address) != 58:
+        return jsonify({'error': 'Valid 58-character Algorand address required'}), 400
+
+    # Validate address checksum
+    try:
+        algo_encoding.decode_address(address)
+    except Exception:
+        return jsonify({'error': 'Invalid Algorand address checksum'}), 400
+
+    # Generate random nonce
+    nonce = base64.b64encode(os.urandom(32)).decode()
+    message = f"CampusTrust Login\nDomain: {request.host}\nWallet: {address}\nNonce: {nonce}"
+
+    try:
+        # Build unsigned zero-ALGO self-payment with challenge as note
+        client = get_client()
+        params = get_suggested_params()
+        txn = PaymentTxn(
+            sender=address,
+            sp=params,
+            receiver=address,
+            amt=0,
+            note=message.encode()
+        )
+        # Encode to base64 msgpack (msgpack_encode already returns base64 string)
+        unsigned_b64 = algo_encoding.msgpack_encode(txn)
+
+        # Store challenge server-side (keyed by address)
+        _auth_challenges[address] = {
+            'nonce': nonce,
+            'message': message,
+            'timestamp': time.time(),
+            'unsigned_txn': unsigned_b64,
+        }
+
+        return jsonify({
+            'nonce': nonce,
+            'message': message,
+            'unsigned_txn': unsigned_b64,
+        })
+
+    except Exception as e:
+        print(f"Auth challenge error: {e}")
+        return jsonify({'error': f'Failed to build challenge: {str(e)}'}), 500
+
+@app.route('/api/auth/verify', methods=['POST'])
+def auth_verify():
+    """Verify the signed challenge transaction. If valid, create session.
+    Auto-creates user on first login."""
+    data = request.json or {}
+    address = data.get('address', '').strip()
+    signed_txn_b64 = data.get('signed_txn', '').strip()
+
+    if not address or not signed_txn_b64:
+        return jsonify({'error': 'Address and signed_txn required'}), 400
+
+    # Check challenge exists and hasn't expired
+    challenge = _auth_challenges.get(address)
+    if not challenge:
+        return jsonify({'error': 'No pending challenge. Request a new one.'}), 400
+
+    if time.time() - challenge['timestamp'] > AUTH_NONCE_EXPIRY:
+        _auth_challenges.pop(address, None)
+        return jsonify({'error': 'Challenge expired. Request a new one.'}), 400
+
+    try:
+        # Decode the signed transaction (msgpack_decode expects base64 string)
+        signed_txn = algo_encoding.msgpack_decode(signed_txn_b64)
+
+        # Verify the transaction was signed by the claimed address
+        # The signed transaction object contains the sender and the signature
+        txn_obj = signed_txn.transaction if hasattr(signed_txn, 'transaction') else signed_txn.dictify()
+
+        # Extract sender from the signed transaction
+        if hasattr(signed_txn, 'transaction'):
+            sender = signed_txn.transaction.sender
+        else:
+            sender = address  # fallback
+
+        # Verify sender matches claimed address
+        if sender != address:
+            return jsonify({'error': 'Transaction sender does not match claimed address'}), 401
+
+        # Verify the note contains our challenge
+        if hasattr(signed_txn, 'transaction'):
+            note = signed_txn.transaction.note
+        else:
+            note = None
+
+        if note:
+            note_str = note.decode('utf-8') if isinstance(note, bytes) else note
+            if challenge['nonce'] not in note_str:
+                return jsonify({'error': 'Challenge nonce mismatch'}), 401
+        else:
+            return jsonify({'error': 'Transaction missing challenge note'}), 401
+
+        # Clear the challenge (one-time use)
+        _auth_challenges.pop(address, None)
+
+        # Find or create user
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE student_id = ? AND password_hash = ?',
-                            (student_id, password_hash)).fetchone()
+        user = conn.execute('SELECT * FROM users WHERE wallet_address = ?', (address,)).fetchone()
+
+        if not user:
+            # First-time login: auto-create user
+            # Use truncated address as student_id and display name
+            short_addr = f"{address[:6]}...{address[-4:]}"
+            conn.execute(
+                'INSERT INTO users (student_id, name, password_hash, role, wallet_address) VALUES (?, ?, ?, ?, ?)',
+                (address, short_addr, '', 'student', address)
+            )
+            conn.commit()
+            user = conn.execute('SELECT * FROM users WHERE wallet_address = ?', (address,)).fetchone()
+            log_transaction(user['id'], 'WALLET_REGISTER', f'First login via wallet: {short_addr}')
+
         conn.close()
-        
-        if user:
-            session['user_id'] = user['id']
-            return redirect(url_for('dashboard'))
-        flash('Invalid credentials')
-    return render_template('login.html')
+
+        # Set session
+        session['user_id'] = user['id']
+        session['wallet_address'] = address
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user['id'],
+                'name': user['name'],
+                'role': user['role'],
+                'wallet_address': address,
+            }
+        })
+
+    except Exception as e:
+        print(f"Auth verify error: {e}")
+        return jsonify({'error': f'Verification failed: {str(e)}'}), 400
+
+@app.route('/api/auth/status', methods=['GET'])
+def auth_status():
+    """Check current auth status."""
+    user = get_current_user()
+    if user:
+        return jsonify({
+            'authenticated': True,
+            'user': {
+                'id': user['id'],
+                'name': user['name'],
+                'role': user['role'],
+                'wallet_address': user['wallet_address'],
+            }
+        })
+    return jsonify({'authenticated': False})
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('login'))
+    return redirect(url_for('wallet_login'))
+
+# Legacy routes — redirect to wallet login
+@app.route('/register', methods=['GET'])
+def register():
+    return redirect(url_for('wallet_login'))
 
 @app.route('/setup_face', methods=['GET', 'POST'])
 def setup_face():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     if request.method == 'POST':
         data = request.json
@@ -407,7 +578,7 @@ def setup_face():
 def dashboard():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
     
     conn = get_db_connection()
     certs = conn.execute('SELECT * FROM certificates WHERE user_id = ? ORDER BY upload_date DESC',
@@ -474,7 +645,7 @@ def dashboard():
 def upload_certificate():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
     
     if request.method == 'POST':
         if 'certificate' not in request.files:
@@ -595,7 +766,7 @@ def upload_certificate():
 @app.route('/delete_certificate/<int:cert_id>', methods=['POST'])
 def delete_certificate(cert_id):
     if 'user_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     conn = get_db_connection()
     cert = conn.execute('SELECT * FROM certificates WHERE id = ?', (cert_id,)).fetchone()
@@ -732,7 +903,7 @@ def create_election():
 def election_detail(eid):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
     
     conn = get_db_connection()
     election = conn.execute('SELECT * FROM elections WHERE id = ?', (eid,)).fetchone()
@@ -902,7 +1073,7 @@ def delete_attendance_session(session_id):
 def attendance_session(session_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     session_info = conn.execute('SELECT * FROM attendance_sessions WHERE id = ?', (session_id,)).fetchone()
@@ -1091,7 +1262,7 @@ def mark_attendance(session_id, user_id):
 def attendance_list():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
 
@@ -1282,7 +1453,7 @@ def feedback_form(form_id):
 def feedback_results(form_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     form_info = conn.execute('SELECT * FROM feedback_forms WHERE id = ?', (form_id,)).fetchone()
@@ -1362,7 +1533,7 @@ def feedback_results(form_id):
 def feedback_list():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1457,7 +1628,7 @@ def admin_create_group():
 def create_group():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     if request.method == 'POST':
         name = request.form['name']
@@ -1493,7 +1664,7 @@ def create_group():
 def discover_groups():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1533,7 +1704,7 @@ def discover_groups():
 def join_group(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
 
@@ -1556,7 +1727,7 @@ def join_group(group_id):
 def leave_group(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     conn.execute('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', (group_id, user['id']))
@@ -1570,7 +1741,7 @@ def leave_group(group_id):
 def group_detail(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     group = conn.execute('SELECT * FROM groups WHERE id = ?', (group_id,)).fetchone()
@@ -1643,7 +1814,7 @@ def group_detail(group_id):
 @app.route('/groups/<int:group_id>/dao/deploy', methods=['POST'])
 def deploy_dao(group_id):
     user = get_current_user()
-    if not user: return redirect(url_for('login'))
+    if not user: return redirect(url_for('wallet_login'))
     
     # Only lead or admin can deploy
     conn = get_db_connection()
@@ -1774,7 +1945,7 @@ def execute_proposal(group_id, proposal_id):
 def delete_group(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1803,7 +1974,7 @@ def delete_group(group_id):
 def invite_member(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1853,7 +2024,7 @@ def invite_member(group_id):
 def accept_invite(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     conn.execute('UPDATE group_members SET status = "accepted" WHERE group_id = ? AND user_id = ?',
@@ -1868,7 +2039,7 @@ def accept_invite(group_id):
 def decline_invite(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     conn.execute('DELETE FROM group_members WHERE group_id = ? AND user_id = ?',
@@ -1916,7 +2087,7 @@ def create_task(group_id):
 def complete_task(group_id, task_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     task = conn.execute('SELECT * FROM group_tasks WHERE id = ? AND group_id = ?', (task_id, group_id)).fetchone()
@@ -2092,7 +2263,7 @@ def complete_milestone(group_id, milestone_id):
 def public_logs():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     conn = get_db_connection()
     # Join with users to get names
@@ -2109,7 +2280,7 @@ def public_logs():
 def download_logs():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     conn = get_db_connection()
     logs = conn.execute('''

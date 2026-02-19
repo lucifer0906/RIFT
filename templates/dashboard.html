@@ -9,9 +9,15 @@
         <p class="lead text-muted">{{ user['role']|title }} Dashboard</p>
     </div>
     <div class="col-md-4 text-md-end d-flex align-items-center justify-content-md-end">
+        {% if user['wallet_address'] %}
+        <span class="badge bg-light text-dark border p-2 rounded-pill px-3" title="{{ user['wallet_address'] }}">
+            <i class="fas fa-wallet me-2 text-success"></i>{{ user['wallet_address'][:6] }}…{{ user['wallet_address'][-4:] }}
+        </span>
+        {% else %}
         <span class="badge bg-light text-dark border p-2 rounded-pill px-3">
             <i class="fas fa-id-badge me-2 text-primary"></i>ID: {{ user['student_id'] }}
         </span>
+        {% endif %}
     </div>
 </div>
 

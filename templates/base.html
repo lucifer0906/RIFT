@@ -36,7 +36,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top glass-nav">
         <div class="container">
             <a class="navbar-brand fw-bold"
-                href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
+                href="{{ url_for('dashboard') if session.get('user_id') else url_for('wallet_login') }}">
                 <img src="https://cryptologos.cc/logos/algorand-algo-logo.png" alt="Algorand" height="30"
                     class="me-2">CampusTrust
             </a>
@@ -66,7 +66,9 @@
                             <i class="fas fa-user-circle me-1"></i> Account
                         </a>
                         <ul class="dropdown-menu shadow border-0 text-start">
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i
+                            <li><span class="dropdown-item-text small text-muted" id="navbar-wallet-addr"></span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="walletLogout(); return false;"><i
                                         class="fas fa-sign-out-alt me-2 text-danger"></i>Logout</a></li>
                         </ul>
                     </li>
@@ -78,12 +80,12 @@
                         </button>
                     </li>
                     {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link btn btn-primary text-white px-4 ms-2 rounded-pill"
-                            href="{{ url_for('register') }}">Register</a>
+                    <li class="nav-item ms-2">
+                        <a class="btn btn-pera btn-sm rounded-pill px-4 fw-bold" href="{{ url_for('wallet_login') }}">
+                            <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera"
+                                style="width: 20px; height: 20px; margin-right: 8px;">
+                            Login with Wallet
+                        </a>
                     </li>
                     {% endif %}
                 </ul>

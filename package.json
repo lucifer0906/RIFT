@@ -1,7 +1,7 @@
 {
-  "name": "campustrust-blockchain",
+  "name": "CampaFi-blockchain",
   "version": "2.0.0",
-  "description": "CampusTrust - Blockchain-powered campus wallet & student services",
+  "description": "CampaFi - Blockchain-powered campus wallet & student services",
   "private": true,
   "scripts": {
     "build": "webpack --mode production",

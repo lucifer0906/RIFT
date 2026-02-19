@@ -1,5 +1,5 @@
 """
-CampusTrust – Wallet Authentication Utilities
+CampaFi – Wallet Authentication Utilities
 ===============================================
 Sign-In With Algorand (SIWA) helpers.
 All authentication is wallet-based — no passwords.

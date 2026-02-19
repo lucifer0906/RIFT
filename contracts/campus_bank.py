@@ -1,5 +1,5 @@
 """
-CampusTrust – Simple Bank Contract (Beaker)
+CampaFi – Simple Bank Contract (Beaker)
 ============================================
 A minimal on-chain escrow / savings contract.
 • Any user can **deposit** ALGO (payment grouped with an app call).

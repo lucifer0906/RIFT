@@ -1,5 +1,5 @@
 """
-CampusTrust – Simple DAO Contract (Beaker)
+CampaFi – Simple DAO Contract (Beaker)
 ============================================
 A minimal on-chain treasury / DAO contract.
 • The **creator** can send ALGO from the contract to any recipient

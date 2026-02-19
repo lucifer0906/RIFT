@@ -1,5 +1,5 @@
 """
-CampusTrust – On-chain note storage helpers
+CampaFi – On-chain note storage helpers
 =============================================
 Builds **unsigned** transactions that the client (Pera Wallet) must sign.
 Also provides a server-side submission helper for already-signed txns.

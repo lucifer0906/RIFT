@@ -1,5 +1,5 @@
 """
-CampusTrust – Contract Deployment Script (AlgoKit)
+CampaFi – Contract Deployment Script (AlgoKit)
 ====================================================
 Compiles all Beaker contracts and optionally deploys them to the
 configured Algorand network (TestNet by default).
@@ -108,7 +108,7 @@ def deploy_all(only: str | None = None):
 # CLI
 # ---------------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description="CampusTrust contract tooling")
+    parser = argparse.ArgumentParser(description="CampaFi contract tooling")
     parser.add_argument("--compile", action="store_true", help="Compile TEAL artefacts")
     parser.add_argument("--deploy", action="store_true", help="Compile + deploy to network")
     parser.add_argument("--contract", type=str, default=None, help="Target a single contract by name")

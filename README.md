@@ -1,4 +1,4 @@
-# CampusTrust — Blockchain-Powered Campus Management System
+# CampaFi — Blockchain-Powered Campus Management System
 
 [![Algorand](https://img.shields.io/badge/Blockchain-Algorand-00D4AA?style=for-the-badge&logo=algorand)](https://www.algorand.com/)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -46,7 +46,7 @@ Traditional campus management systems suffer from:
 
 ### Our Solution
 
-CampusTrust is built around a **wallet-first** design using Algorand blockchain:
+CampaFi is built around a **wallet-first** design using Algorand blockchain:
 
 | Capability | How It Works |
 |---|---|
@@ -278,7 +278,7 @@ Four-tab interface:
 ## 📂 Project Structure
 
 ```
-campustrust-blockchain/
+CampaFi-blockchain/
 │
 ├── contracts/                     # AlgoKit / Beaker smart contracts
 │   ├── campus_bank.py             # Deposit/withdraw ALGO (Beaker Application)
@@ -358,8 +358,8 @@ campustrust-blockchain/
 ### Step 1: Clone & Install
 
 ```bash
-git clone https://github.com/Helly121/campustrust-blockchain.git
-cd campustrust-blockchain
+git clone https://github.com/Helly121/CampaFi-blockchain.git
+cd CampaFi-blockchain
 
 # Python dependencies
 pip install -r requirements.txt

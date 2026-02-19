@@ -1,1 +1,1 @@
-# CampusTrust Smart Contracts (Beaker / AlgoKit)
+# CampaFi Smart Contracts (Beaker / AlgoKit)

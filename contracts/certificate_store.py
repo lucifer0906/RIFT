@@ -1,5 +1,5 @@
 """
-CampusTrust – Certificate Store Contract (Beaker)
+CampaFi – Certificate Store Contract (Beaker)
 ===================================================
 Stores and manages certificate hashes using **Box Storage** (AVM v8+).
 • ``add_certificate``  – stores a hash + metadata JSON in a box

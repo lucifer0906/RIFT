@@ -1,5 +1,5 @@
 """
-CampusTrust – Algorand Client Helpers
+CampaFi – Algorand Client Helpers
 ======================================
 Provides read-only / unsigned-transaction helpers.
 

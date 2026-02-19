@@ -1,5 +1,5 @@
 /**
- * CampusTrust Wallet Core v2.0
+ * CampaFi Wallet Core v2.0
  * Full client-side wallet: connect, balance, history, receive QR, send payment.
  * Dependencies (loaded via CDN / webpack bundle in base.html):
  *   - window.algosdk   (CDN)

@@ -77,7 +77,7 @@ def compile_program(client, source_code: str) -> bytes:
 
 def _txn_to_b64(txn) -> str:
     """Encode an unsigned Transaction to base64 msgpack."""
-    return base64.b64encode(encoding.msgpack_encode(txn)).decode()
+    return encoding.msgpack_encode(txn)
 
 
 def build_payment_txn(sender: str, receiver: str, amount_algo: float, note: str = "") -> dict:
@@ -220,8 +220,7 @@ def submit_signed_transaction(signed_b64: str) -> dict:
     """Submit a base64-encoded signed transaction and return its txid."""
     client = get_client()
     try:
-        raw = base64.b64decode(signed_b64)
-        txid = client.send_raw_transaction(raw)
+        txid = client.send_raw_transaction(signed_b64)
         wait_for_confirmation(client, txid)
         # Try to extract asset/app ID from pending info
         ptx = client.pending_transaction_info(txid)
@@ -239,8 +238,8 @@ def submit_signed_group(signed_b64_list: list[str]) -> dict:
     """Submit a group of signed transactions."""
     client = get_client()
     try:
-        raw_list = [base64.b64decode(s) for s in signed_b64_list]
-        txid = client.send_transactions(raw_list)
+        combined = b"".join(base64.b64decode(s) for s in signed_b64_list)
+        txid = client.send_raw_transaction(base64.b64encode(combined).decode())
         wait_for_confirmation(client, txid)
         return {"success": True, "tx_id": txid}
     except Exception as e:

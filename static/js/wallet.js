@@ -365,7 +365,7 @@ async function quickSendAlgo() {
         if (data.error) throw new Error(data.error);
 
         // 2. Decode & sign with Pera
-        const txnBytes = Uint8Array.from(atob(data.unsigned_txn), (c) => c.charCodeAt(0));
+        const txnBytes = Uint8Array.from(atob(data.txn_b64 || data.unsigned_txn), (c) => c.charCodeAt(0));
         const decodedTxn = algosdk.decodeUnsignedTransaction(txnBytes);
         btn.innerHTML = '<i class="fas fa-pen-nib fa-spin me-2"></i>Sign in Pera…';
         const signedTxns = await peraWallet.signTransaction([[{ txn: decodedTxn }]]);

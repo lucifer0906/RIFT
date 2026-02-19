@@ -8,7 +8,8 @@
     "dev": "webpack --mode development --watch"
   },
   "dependencies": {
-    "@perawallet/connect": "^1.5.0"
+    "@perawallet/connect": "^1.5.0",
+    "algosdk": "^3.5.2"
   },
   "devDependencies": {
     "webpack": "^5.105.2",

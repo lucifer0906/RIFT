@@ -12,8 +12,5 @@ algokit-utils>=2.0.0
 python-dotenv>=1.0.0
 msgpack>=1.0.0
 
-# ─── AI Chatbot ───
-google-generativeai>=0.8.0
-
 # ─── Production Server ───
 gunicorn>=21.2.0

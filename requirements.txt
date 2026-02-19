@@ -1,0 +1,19 @@
+# ─── Core Web Framework ───
+Flask>=2.3.0
+Werkzeug>=2.3.0
+
+# ─── Algorand / AlgoKit ───
+py-algorand-sdk>=2.0.0
+pyteal>=0.24.0
+beaker-pyteal>=1.1.1
+algokit-utils>=2.0.0
+
+# ─── Utilities ───
+python-dotenv>=1.0.0
+msgpack>=1.0.0
+
+# ─── AI Chatbot ───
+google-generativeai>=0.8.0
+
+# ─── Production Server ───
+gunicorn>=21.2.0

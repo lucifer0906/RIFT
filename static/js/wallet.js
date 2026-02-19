@@ -1,5 +1,5 @@
 /**
- * CampusTrust Wallet Core v2.0
+ * CampaFi Wallet Core v2.0
  * Full client-side wallet: connect, balance, history, receive QR, send payment.
  * Dependencies (loaded via CDN / webpack bundle in base.html):
  *   - window.algosdk   (CDN)
@@ -68,6 +68,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Navbar connect button
     const connectBtn = document.getElementById("connect-wallet-btn");
     if (connectBtn) connectBtn.addEventListener("click", handleConnectWallet);
+
+    // Show wallet address in navbar account dropdown
+    const navAddrEl = document.getElementById("navbar-wallet-addr");
+    if (navAddrEl && connectedAccount) {
+        navAddrEl.textContent = `${connectedAccount.slice(0, 8)}…${connectedAccount.slice(-6)}`;
+    }
 });
 
 /* ------------------------------------------------------------------ */
@@ -359,7 +365,7 @@ async function quickSendAlgo() {
         if (data.error) throw new Error(data.error);
 
         // 2. Decode & sign with Pera
-        const txnBytes = Uint8Array.from(atob(data.unsigned_txn), (c) => c.charCodeAt(0));
+        const txnBytes = Uint8Array.from(atob(data.txn_b64 || data.unsigned_txn), (c) => c.charCodeAt(0));
         const decodedTxn = algosdk.decodeUnsignedTransaction(txnBytes);
         btn.innerHTML = '<i class="fas fa-pen-nib fa-spin me-2"></i>Sign in Pera…';
         const signedTxns = await peraWallet.signTransaction([[{ txn: decodedTxn }]]);
@@ -433,4 +439,120 @@ function clearDashboardWallet() {
     if (panel) panel.classList.add("d-none");
     const placeholder = document.getElementById("wallet-connect-placeholder");
     if (placeholder) placeholder.classList.remove("d-none");
+}
+
+/* ------------------------------------------------------------------ */
+/*  WALLET-ONLY AUTHENTICATION (Sign-In With Algorand)                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Full wallet login flow:
+ * 1. Connect Pera Wallet
+ * 2. Request challenge from server (unsigned zero-ALGO self-pay with nonce)
+ * 3. Sign challenge tx with Pera
+ * 4. Send signed tx to server for verification
+ * 5. Server creates session → redirect to dashboard
+ */
+async function walletLogin() {
+    const statusEl = document.getElementById("wallet-login-status");
+    const btnEl = document.getElementById("wallet-login-btn");
+
+    function setStatus(msg, type = "info") {
+        if (statusEl) {
+            statusEl.className = `alert alert-${type} mt-3`;
+            statusEl.innerHTML = msg;
+            statusEl.classList.remove("d-none");
+        }
+    }
+
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connecting Wallet…';
+    }
+
+    try {
+        // 1. Connect Pera Wallet
+        if (!peraWallet) {
+            throw new Error("Pera Wallet SDK not loaded. Please refresh the page.");
+        }
+
+        let accounts;
+        try {
+            accounts = await peraWallet.connect();
+        } catch (err) {
+            if (err?.data?.type === "CONNECT_MODAL_CLOSED") {
+                throw new Error("Wallet connection cancelled.");
+            }
+            throw err;
+        }
+
+        const address = accounts[0];
+        if (!address) throw new Error("No account selected.");
+
+        setStatus(`<i class="fas fa-wallet me-2"></i>Connected: ${address.slice(0, 6)}…${address.slice(-4)}. Requesting challenge…`, "info");
+        if (btnEl) btnEl.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Requesting Challenge…';
+
+        // 2. Get challenge from server
+        const challengeResp = await fetch("/api/auth/challenge", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address }),
+        });
+        const challengeData = await challengeResp.json();
+        if (challengeData.error) throw new Error(challengeData.error);
+
+        setStatus(`<i class="fas fa-pen-nib me-2"></i>Please sign the login message in Pera Wallet…`, "warning");
+        if (btnEl) btnEl.innerHTML = '<i class="fas fa-pen-nib fa-spin me-2"></i>Sign in Pera…';
+
+        // 3. Decode unsigned tx and sign with Pera
+        const txnBytes = Uint8Array.from(atob(challengeData.unsigned_txn), (c) => c.charCodeAt(0));
+        const decodedTxn = algosdk.decodeUnsignedTransaction(txnBytes);
+
+        const signedTxns = await peraWallet.signTransaction([[{ txn: decodedTxn }]]);
+
+        const signedB64 = arrayToBase64(signedTxns[0]);
+
+        setStatus(`<i class="fas fa-shield-alt me-2"></i>Verifying signature…`, "info");
+        if (btnEl) btnEl.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Verifying…';
+
+        // 4. Send signed tx to server for verification
+        const verifyResp = await fetch("/api/auth/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ address, signed_txn: signedB64 }),
+        });
+        const verifyData = await verifyResp.json();
+
+        if (verifyData.success) {
+            setStatus(`<i class="fas fa-check-circle me-2"></i>Login successful! Redirecting…`, "success");
+            // Store the connected account
+            connectedAccount = address;
+            // Redirect to dashboard
+            setTimeout(() => {
+                window.location.href = "/dashboard";
+            }, 800);
+        } else {
+            throw new Error(verifyData.error || "Verification failed");
+        }
+
+    } catch (err) {
+        console.error("walletLogin error:", err);
+        const msg = err.message || "Login failed. Please try again.";
+        setStatus(`<i class="fas fa-exclamation-triangle me-2"></i>${msg}`, "danger");
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = '<img src="https://explorer.perawallet.app/favicon.ico" alt="Pera" style="width:24px;height:24px;margin-right:10px"> Login with Pera Wallet';
+        }
+    }
+}
+
+/**
+ * Wallet logout: disconnect Pera + clear server session
+ */
+async function walletLogout() {
+    try {
+        if (peraWallet) await peraWallet.disconnect().catch(() => {});
+    } catch (_) {}
+    connectedAccount = null;
+    window.location.href = "/logout";
 }

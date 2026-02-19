@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import app, get_db_connection, create_tables
 
-class CampusTrustTestCase(unittest.TestCase):
+class CampaFiTestCase(unittest.TestCase):
     def setUp(self):
         self.db_fd, self.db_path = tempfile.mkstemp()
         app.config['TESTING'] = True

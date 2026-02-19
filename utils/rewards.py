@@ -1,5 +1,5 @@
 """
-CampusTrust – Campus Token / Rewards system
+CampaFi – Campus Token / Rewards system
 =============================================
 Tracks the CampusToken ASA and provides helpers to build
 unsigned reward transactions for Pera Wallet signing.

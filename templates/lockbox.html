@@ -1,0 +1,633 @@
+{% extends "base.html" %}
+
+{% block title %}Lockbox Savings - CampaFi{% endblock %}
+
+{% block extra_css %}
+<style>
+    .lockbox-hero {
+        background: linear-gradient(135deg, #0d1b2a 0%, #1b2838 50%, #0f4c75 100%);
+        border-radius: 20px;
+        padding: 2.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .lockbox-hero::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 50%;
+    }
+    .goal-card {
+        border: none;
+        border-radius: 16px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        overflow: hidden;
+    }
+    .goal-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+    }
+    .goal-progress {
+        height: 10px;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .time-badge {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .locked-badge {
+        background: linear-gradient(135deg, #f093fb, #f5576c);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .released-badge {
+        background: linear-gradient(135deg, #43e97b, #38f9d7);
+        color: #0d1b2a;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .countdown-display {
+        font-family: 'Outfit', monospace;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #667eea;
+    }
+    .deposit-input-group .form-control {
+        border-radius: 12px 0 0 12px;
+    }
+    .deposit-input-group .btn {
+        border-radius: 0 12px 12px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row fade-in">
+    <!-- Hero -->
+    <div class="col-12 mb-4">
+        <div class="lockbox-hero">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h2 class="fw-bold display-5 mb-2">
+                        <i class="fas fa-lock me-3"></i>Lockbox Savings
+                    </h2>
+                    <p class="text-white text-opacity-75 lead mb-0">
+                        Create time-locked savings goals. Funds are securely held on-chain and 
+                        cannot be withdrawn until the target date — perfect for event treasuries and group savings.
+                    </p>
+                </div>
+                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                    <button class="btn btn-light btn-lg rounded-pill px-4 shadow" data-bs-toggle="modal" data-bs-target="#createGoalModal">
+                        <i class="fas fa-plus me-2"></i>Create Goal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="col-lg-4 mb-4">
+        <div class="card border-0 shadow-sm h-100" style="border-radius:16px;">
+            <div class="card-body p-4 text-center">
+                <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle mb-3" style="width:60px;height:60px;">
+                    <i class="fas fa-piggy-bank fa-lg text-primary"></i>
+                </div>
+                <h3 class="fw-bold mb-1" id="stat-total-goals">{{ goals|length }}</h3>
+                <p class="text-muted small mb-0">Active Goals</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card border-0 shadow-sm h-100" style="border-radius:16px;">
+            <div class="card-body p-4 text-center">
+                <div class="d-inline-flex align-items-center justify-content-center bg-success bg-opacity-10 rounded-circle mb-3" style="width:60px;height:60px;">
+                    <i class="fas fa-coins fa-lg text-success"></i>
+                </div>
+                <h3 class="fw-bold mb-1" id="stat-total-locked">
+                    {{ "%.4f"|format(goals|sum(attribute='deposited_algo')|default(0, true)) }} ALGO
+                </h3>
+                <p class="text-muted small mb-0">Total Locked</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card border-0 shadow-sm h-100" style="border-radius:16px;">
+            <div class="card-body p-4 text-center">
+                <div class="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 rounded-circle mb-3" style="width:60px;height:60px;">
+                    <i class="fas fa-clock fa-lg text-warning"></i>
+                </div>
+                <h3 class="fw-bold mb-1">
+                    {{ goals|selectattr('status', 'equalto', 'locked')|list|length }}
+                </h3>
+                <p class="text-muted small mb-0">Still Locked</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goals List -->
+    <div class="col-12">
+        {% if goals %}
+        <div class="row g-4">
+            {% for goal in goals %}
+            <div class="col-lg-6">
+                <div class="card goal-card shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h5 class="fw-bold mb-1">{{ goal.name }}</h5>
+                                <small class="text-muted">
+                                    Created {{ goal.created_date[:10] if goal.created_date else 'N/A' }}
+                                    {% if goal.group_name %}
+                                    · <i class="fas fa-users me-1"></i>{{ goal.group_name }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                {% if goal.status == 'released' %}
+                                <span class="released-badge"><i class="fas fa-check me-1"></i>Released</span>
+                                {% elif goal.is_unlockable %}
+                                <span class="time-badge"><i class="fas fa-unlock me-1"></i>Ready</span>
+                                {% else %}
+                                <span class="locked-badge"><i class="fas fa-lock me-1"></i>Locked</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Progress -->
+                        {% set pct = ((goal.deposited_algo / goal.target_algo * 100) if goal.target_algo > 0 else 0)|round(1) %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span class="fw-bold">{{ "%.4f"|format(goal.deposited_algo) }} ALGO</span>
+                                <span class="text-muted">Target: {{ "%.4f"|format(goal.target_algo) }} ALGO</span>
+                            </div>
+                            <div class="progress goal-progress">
+                                <div class="progress-bar {% if pct >= 100 %}bg-success{% elif pct >= 50 %}bg-primary{% else %}bg-warning{% endif %}" 
+                                     style="width: {{ [pct, 100]|min }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ pct }}% funded</small>
+                        </div>
+
+                        <!-- Countdown -->
+                        <div class="mb-3 p-3 bg-light rounded-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-hourglass-half me-2 text-muted"></i>
+                                <div>
+                                    <small class="text-muted d-block">Unlock Date</small>
+                                    <span class="countdown-display" data-unlock="{{ goal.unlock_time }}">
+                                        {{ goal.unlock_date_str }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-flex gap-2">
+                            {% if goal.status != 'released' %}
+                            <button class="btn btn-primary btn-sm rounded-pill px-3 flex-grow-1"
+                                    onclick="depositToGoal({{ goal.id }}, {{ goal.app_id or 0 }})">
+                                <i class="fas fa-plus me-1"></i>Deposit
+                            </button>
+                            {% endif %}
+
+                            {% if goal.is_unlockable and goal.status != 'released' and goal.is_creator %}
+                            <button class="btn btn-success btn-sm rounded-pill px-3 flex-grow-1"
+                                    onclick="withdrawGoal({{ goal.id }}, {{ goal.app_id or 0 }}, {{ goal.deposited_algo }})">
+                                <i class="fas fa-unlock me-1"></i>Withdraw
+                            </button>
+                            {% endif %}
+
+                            {% if goal.status != 'released' and goal.is_creator %}
+                            <button class="btn btn-outline-danger btn-sm rounded-pill px-3"
+                                    onclick="forceReleaseGoal({{ goal.id }}, {{ goal.app_id or 0 }}, {{ goal.deposited_algo }})"
+                                    title="Emergency early release">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </button>
+                            {% endif %}
+
+                            {% if goal.tx_id %}
+                            <a href="https://testnet.explorer.perawallet.app/tx/{{ goal.tx_id }}" 
+                               target="_blank" class="btn btn-outline-secondary btn-sm rounded-pill px-3"
+                               title="View on Explorer">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        {% if goal.app_id %}
+                        <div class="mt-2">
+                            <small class="text-muted"><i class="fas fa-cube me-1"></i>App ID: {{ goal.app_id }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <div class="d-inline-flex align-items-center justify-content-center bg-light rounded-circle mb-3" style="width:80px;height:80px;">
+                <i class="fas fa-piggy-bank fa-2x text-muted"></i>
+            </div>
+            <h5 class="text-muted mb-2">No savings goals yet</h5>
+            <p class="text-muted">Create your first lockbox to start saving towards a goal!</p>
+            <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#createGoalModal">
+                <i class="fas fa-plus me-2"></i>Create First Goal
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Goal Modal -->
+<div class="modal fade" id="createGoalModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-lock me-2 text-primary"></i>Create Savings Goal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="create-goal-form">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Goal Name</label>
+                        <input type="text" class="form-control" id="goal-name" 
+                               placeholder="e.g., Spring Event Treasury" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Target Amount (ALGO)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-coins text-muted"></i></span>
+                            <input type="number" class="form-control" id="goal-target" 
+                                   step="0.001" min="0.1" placeholder="10.0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Unlock Date & Time</label>
+                        <input type="datetime-local" class="form-control" id="goal-unlock-date" required>
+                        <small class="text-muted">Funds will be locked until this date</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Group (Optional)</label>
+                        <select class="form-select" id="goal-group">
+                            <option value="">Personal goal</option>
+                            {% for g in user_groups %}
+                            <option value="{{ g.id }}">{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="alert alert-info small mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        A smart contract will be deployed on Algorand TestNet. Your Pera Wallet will be 
+                        asked to sign the deployment transaction. No funds are locked until you make a deposit.
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill" id="create-goal-btn">
+                        <i class="fas fa-rocket me-2"></i>Deploy Lockbox Contract
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Deposit Modal -->
+<div class="modal fade" id="depositModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold"><i class="fas fa-coins me-2 text-success"></i>Deposit to Lockbox</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="deposit-form">
+                    <input type="hidden" id="deposit-goal-id">
+                    <input type="hidden" id="deposit-app-id">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Amount (ALGO)</label>
+                        <div class="input-group deposit-input-group">
+                            <input type="number" class="form-control" id="deposit-amount" 
+                                   step="0.001" min="0.001" placeholder="1.0" required>
+                            <button type="submit" class="btn btn-success px-4" id="deposit-btn">
+                                <i class="fas fa-lock me-1"></i>Lock Funds
+                            </button>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning small">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Once deposited, funds <strong>cannot</strong> be withdrawn until the unlock date.
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Countdown timers ──
+document.querySelectorAll('.countdown-display[data-unlock]').forEach(el => {
+    const unlockTs = parseInt(el.dataset.unlock);
+    function updateCountdown() {
+        const now = Math.floor(Date.now() / 1000);
+        const diff = unlockTs - now;
+        if (diff <= 0) {
+            el.innerHTML = '<span class="text-success fw-bold">🔓 Unlocked!</span>';
+            return;
+        }
+        const days = Math.floor(diff / 86400);
+        const hrs = Math.floor((diff % 86400) / 3600);
+        const mins = Math.floor((diff % 3600) / 60);
+        const secs = diff % 60;
+        el.textContent = `${days}d ${hrs}h ${mins}m ${secs}s`;
+    }
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+});
+
+// ── Set minimum date to now ──
+document.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.getElementById('goal-unlock-date');
+    if (dateInput) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        dateInput.min = now.toISOString().slice(0, 16);
+    }
+});
+
+// ── Create Goal ──
+document.getElementById('create-goal-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('create-goal-btn');
+    const origText = btn.innerHTML;
+    
+    if (!connectedAccount) {
+        alert('Please connect your Pera Wallet first!');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deploying...';
+
+    try {
+        const unlockDate = new Date(document.getElementById('goal-unlock-date').value);
+        const unlockTimestamp = Math.floor(unlockDate.getTime() / 1000);
+
+        // 1. Create goal in DB and get deploy txn
+        const prepRes = await fetch('/api/lockbox/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sender: connectedAccount,
+                name: document.getElementById('goal-name').value,
+                target_algo: parseFloat(document.getElementById('goal-target').value),
+                unlock_timestamp: unlockTimestamp,
+                group_id: document.getElementById('goal-group').value || null
+            })
+        });
+        const prepJson = await prepRes.json();
+        if (prepJson.error) throw new Error(prepJson.error);
+
+        // 2. Sign with Pera (if there's a txn to sign)
+        if (prepJson.txn_b64) {
+            const binaryString = atob(prepJson.txn_b64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+            
+            const txn = algosdk.decodeUnsignedTransaction(bytes);
+            const singleTxnGroups = [{ txn, signers: [connectedAccount] }];
+            const signedTxns = await peraWallet.signTransaction([singleTxnGroups]);
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+
+            const signedBytes = signedTxns[0];
+            let binary = '';
+            for (let i = 0; i < signedBytes.length; i++) binary += String.fromCharCode(signedBytes[i]);
+            const signedB64 = btoa(binary);
+
+            // 3. Submit
+            const subRes = await fetch('/api/lockbox/confirm_deploy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    goal_id: prepJson.goal_id,
+                    signed_txn: signedB64
+                })
+            });
+            const subJson = await subRes.json();
+            if (subJson.error) throw new Error(subJson.error);
+            
+            showToast('Lockbox deployed! App ID: ' + subJson.app_id, 'success');
+        } else {
+            showToast('Goal created successfully!', 'success');
+        }
+
+        setTimeout(() => window.location.reload(), 1500);
+
+    } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = origText;
+    }
+});
+
+// ── Deposit to Goal ──
+function depositToGoal(goalId, appId) {
+    document.getElementById('deposit-goal-id').value = goalId;
+    document.getElementById('deposit-app-id').value = appId;
+    new bootstrap.Modal(document.getElementById('depositModal')).show();
+}
+
+document.getElementById('deposit-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('deposit-btn');
+    const origText = btn.innerHTML;
+
+    if (!connectedAccount) {
+        alert('Please connect your Pera Wallet first!');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing...';
+
+    try {
+        const goalId = document.getElementById('deposit-goal-id').value;
+        const appId = document.getElementById('deposit-app-id').value;
+        const amount = parseFloat(document.getElementById('deposit-amount').value);
+
+        // 1. Prepare deposit txns
+        const prepRes = await fetch('/api/lockbox/deposit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sender: connectedAccount,
+                goal_id: goalId,
+                app_id: parseInt(appId),
+                amount_algo: amount
+            })
+        });
+        const prepJson = await prepRes.json();
+        if (prepJson.error) throw new Error(prepJson.error);
+
+        // 2. Sign (could be grouped txns)
+        let signedB64;
+        if (prepJson.txns_b64) {
+            // Group transaction
+            const txnGroup = prepJson.txns_b64.map(b64 => {
+                const bin = atob(b64);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                return { txn: algosdk.decodeUnsignedTransaction(bytes), signers: [connectedAccount] };
+            });
+            const signedTxns = await peraWallet.signTransaction([txnGroup]);
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+            
+            // Convert all to base64
+            const signedList = signedTxns.map(raw => {
+                let binary = '';
+                for (let i = 0; i < raw.length; i++) binary += String.fromCharCode(raw[i]);
+                return btoa(binary);
+            });
+
+            const subRes = await fetch('/api/lockbox/confirm_deposit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    goal_id: goalId,
+                    signed_txns: signedList,
+                    amount_algo: amount
+                })
+            });
+            const subJson = await subRes.json();
+            if (subJson.error) throw new Error(subJson.error);
+        }
+
+        showToast('Deposit successful! Funds are locked.', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+
+    } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = origText;
+    }
+});
+
+// ── Withdraw (time-locked release) ──
+async function withdrawGoal(goalId, appId, balance) {
+    if (!connectedAccount) { alert('Connect wallet first'); return; }
+    if (!confirm(`Withdraw ${balance} ALGO from this lockbox?`)) return;
+
+    try {
+        const prepRes = await fetch('/api/lockbox/withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sender: connectedAccount,
+                goal_id: goalId,
+                app_id: appId,
+                amount_algo: balance
+            })
+        });
+        const prepJson = await prepRes.json();
+        if (prepJson.error) throw new Error(prepJson.error);
+
+        const bin = atob(prepJson.txn_b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        
+        const txn = algosdk.decodeUnsignedTransaction(bytes);
+        const signedTxns = await peraWallet.signTransaction([[{ txn, signers: [connectedAccount] }]]);
+
+        const raw = signedTxns[0];
+        let binary = '';
+        for (let i =0; i < raw.length; i++) binary += String.fromCharCode(raw[i]);
+
+        const subRes = await fetch('/api/lockbox/confirm_withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                goal_id: goalId,
+                signed_txn: btoa(binary)
+            })
+        });
+        const subJson = await subRes.json();
+        if (subJson.error) throw new Error(subJson.error);
+
+        showToast('Funds released successfully!', 'success');
+        setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+    }
+}
+
+// ── Force Release (emergency) ──
+async function forceReleaseGoal(goalId, appId, balance) {
+    if (!connectedAccount) { alert('Connect wallet first'); return; }
+    if (!confirm('⚠️ EMERGENCY RELEASE: This will bypass the time lock. Are you sure?')) return;
+
+    try {
+        const prepRes = await fetch('/api/lockbox/force_release', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sender: connectedAccount,
+                goal_id: goalId,
+                app_id: appId,
+                amount_algo: balance
+            })
+        });
+        const prepJson = await prepRes.json();
+        if (prepJson.error) throw new Error(prepJson.error);
+
+        const bin = atob(prepJson.txn_b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        
+        const txn = algosdk.decodeUnsignedTransaction(bytes);
+        const signedTxns = await peraWallet.signTransaction([[{ txn, signers: [connectedAccount] }]]);
+
+        const raw = signedTxns[0];
+        let binary = '';
+        for (let i = 0; i < raw.length; i++) binary += String.fromCharCode(raw[i]);
+
+        const subRes = await fetch('/api/lockbox/confirm_withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                goal_id: goalId,
+                signed_txn: btoa(binary),
+                force: true
+            })
+        });
+        const subJson = await subRes.json();
+        if (subJson.error) throw new Error(subJson.error);
+
+        showToast('Emergency release completed.', 'warning');
+        setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+        console.error(err);
+        alert('Error: ' + err.message);
+    }
+}
+</script>
+{% endblock %}

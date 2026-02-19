@@ -1,5 +1,5 @@
 """
-CampusTrust – Advanced Algorand Features
+CampaFi – Advanced Algorand Features
 ==========================================
 Builds **unsigned** transactions for the client to sign via Pera Wallet.
 Also provides read-only helpers (indexer queries, compile, etc.).
@@ -77,7 +77,7 @@ def compile_program(client, source_code: str) -> bytes:
 
 def _txn_to_b64(txn) -> str:
     """Encode an unsigned Transaction to base64 msgpack."""
-    return base64.b64encode(encoding.msgpack_encode(txn)).decode()
+    return encoding.msgpack_encode(txn)
 
 
 def build_payment_txn(sender: str, receiver: str, amount_algo: float, note: str = "") -> dict:
@@ -220,8 +220,7 @@ def submit_signed_transaction(signed_b64: str) -> dict:
     """Submit a base64-encoded signed transaction and return its txid."""
     client = get_client()
     try:
-        raw = base64.b64decode(signed_b64)
-        txid = client.send_raw_transaction(raw)
+        txid = client.send_raw_transaction(signed_b64)
         wait_for_confirmation(client, txid)
         # Try to extract asset/app ID from pending info
         ptx = client.pending_transaction_info(txid)
@@ -239,10 +238,202 @@ def submit_signed_group(signed_b64_list: list[str]) -> dict:
     """Submit a group of signed transactions."""
     client = get_client()
     try:
-        raw_list = [base64.b64decode(s) for s in signed_b64_list]
-        txid = client.send_transactions(raw_list)
+        combined = b"".join(base64.b64decode(s) for s in signed_b64_list)
+        txid = client.send_raw_transaction(base64.b64encode(combined).decode())
         wait_for_confirmation(client, txid)
         return {"success": True, "tx_id": txid}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Lockbox / Time-Locked Savings helpers
+# ──────────────────────────────────────────────────────────────────────────
+
+def build_lockbox_deploy_txn(
+    sender: str,
+    goal_name: str,
+    target_microalgo: int,
+    unlock_timestamp: int,
+) -> dict:
+    """
+    Build an unsigned ApplicationCreateTxn for a Lockbox contract.
+    
+    Uses a minimal TEAL program that stores goal metadata in global state
+    and enforces time-locked withdrawals via inner transactions.
+    """
+    # Minimal approval TEAL for lockbox
+    # Stores: goal_name, target_amount, unlock_time, total_deposited, is_released
+    approval_teal = """#pragma version 8
+txn ApplicationID
+int 0
+==
+bnz handle_create
+
+txn OnCompletion
+int NoOp
+==
+bnz handle_noop
+
+txn OnCompletion
+int DeleteApplication
+==
+bnz handle_delete
+
+err
+
+handle_create:
+int 1
+return
+
+handle_noop:
+txna ApplicationArgs 0
+byte "setup"
+==
+bnz handle_setup
+
+txna ApplicationArgs 0
+byte "deposit"
+==
+bnz handle_deposit
+
+txna ApplicationArgs 0
+byte "withdraw"
+==
+bnz handle_withdraw
+
+txna ApplicationArgs 0
+byte "force_release"
+==
+bnz handle_force_release
+
+err
+
+handle_setup:
+txn Sender
+global CreatorAddress
+==
+assert
+byte "goal_name"
+txna ApplicationArgs 1
+app_global_put
+byte "target_amount"
+txna ApplicationArgs 2
+btoi
+app_global_put
+byte "unlock_time"
+txna ApplicationArgs 3
+btoi
+app_global_put
+byte "total_deposited"
+int 0
+app_global_put
+byte "is_released"
+int 0
+app_global_put
+int 1
+return
+
+handle_deposit:
+byte "is_released"
+app_global_get
+int 0
+==
+assert
+byte "total_deposited"
+byte "total_deposited"
+app_global_get
+int 1
++
+app_global_put
+int 1
+return
+
+handle_withdraw:
+txn Sender
+global CreatorAddress
+==
+assert
+global LatestTimestamp
+byte "unlock_time"
+app_global_get
+>=
+assert
+byte "is_released"
+app_global_get
+int 0
+==
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txna ApplicationArgs 1
+itxn_field Receiver
+txna ApplicationArgs 2
+btoi
+itxn_field Amount
+int 0
+itxn_field Fee
+itxn_submit
+byte "is_released"
+int 1
+app_global_put
+int 1
+return
+
+handle_force_release:
+txn Sender
+global CreatorAddress
+==
+assert
+byte "is_released"
+app_global_get
+int 0
+==
+assert
+itxn_begin
+int pay
+itxn_field TypeEnum
+txna ApplicationArgs 1
+itxn_field Receiver
+txna ApplicationArgs 2
+btoi
+itxn_field Amount
+int 0
+itxn_field Fee
+itxn_submit
+byte "is_released"
+int 1
+app_global_put
+int 1
+return
+
+handle_delete:
+txn Sender
+global CreatorAddress
+==
+return
+"""
+    
+    clear_teal = """#pragma version 8
+int 1
+return
+"""
+    
+    client = get_client()
+    approval_program = compile_program(client, approval_teal)
+    clear_program = compile_program(client, clear_teal)
+    
+    params = get_suggested_params()
+    txn = ApplicationCreateTxn(
+        sender=sender,
+        sp=params,
+        on_complete=transaction.OnComplete.NoOpOC,
+        approval_program=approval_program,
+        clear_program=clear_program,
+        global_schema=StateSchema(num_uints=4, num_bytes=1),
+        local_schema=StateSchema(num_uints=0, num_bytes=0),
+        note=f"CampaFi Lockbox: {goal_name}".encode(),
+    )
+    return {"txn_b64": _txn_to_b64(txn)}
 

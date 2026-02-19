@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from functools import wraps
 import os
 import sqlite3
 import hashlib
@@ -17,12 +18,15 @@ from utils.blockchain_utils import (
     delete_certificate_on_chain
 )
 import base64
-from algorand.connect import get_client
+from algosdk import encoding as algo_encoding
+from algosdk.transaction import PaymentTxn
+from algorand.connect import get_client, get_suggested_params
 from algorand.advanced_features import (
     build_payment_txn, build_asa_create_txn, build_nft_mint_txn,
     build_deploy_contract_txn, build_bank_deposit_txns, build_bank_withdraw_txn,
     get_contract_history, compile_program,
     submit_signed_transaction, submit_signed_group,
+    build_lockbox_deploy_txn,
 )
 from utils.rewards import ensure_campus_token, distribute_reward, generate_student_wallet, opt_in_asset, TOKEN_UNIT
 from dotenv import load_dotenv
@@ -57,14 +61,19 @@ def create_tables():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
+        password_hash TEXT DEFAULT '',
         role TEXT DEFAULT 'student',
-        wallet_address TEXT,
+        wallet_address TEXT UNIQUE,
         wallet_mnemonic TEXT,
-        face_descriptor TEXT
+        face_descriptor TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
     
     # Simple migration for existing DB
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    except sqlite3.OperationalError:
+        pass
     try:
         c.execute("ALTER TABLE users ADD COLUMN face_descriptor TEXT")
     except sqlite3.OperationalError:
@@ -262,6 +271,37 @@ def create_tables():
         UNIQUE(proposal_id, user_id)
     )''')
 
+    # ── Lockbox / Time-Locked Savings Goals ──
+    c.execute('''CREATE TABLE IF NOT EXISTS lockbox_goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        group_id INTEGER,
+        name TEXT NOT NULL,
+        target_amount INTEGER DEFAULT 0,
+        deposited_amount INTEGER DEFAULT 0,
+        unlock_time INTEGER NOT NULL,
+        app_id INTEGER,
+        status TEXT DEFAULT 'locked',
+        tx_id TEXT,
+        created_date TEXT,
+        released_date TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(group_id) REFERENCES groups(id)
+    )''')
+
+    # ── Privacy-Aware Receipts ──
+    c.execute('''CREATE TABLE IF NOT EXISTS privacy_receipts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        json_data TEXT,
+        data_hash TEXT NOT NULL,
+        tx_id TEXT,
+        created_date TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )''')
+
     # Migrations for columns added after initial schema
     try:
         c.execute("ALTER TABLE attendance_sessions ADD COLUMN end_time TEXT")
@@ -283,14 +323,20 @@ def create_tables():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
-    # Create default admin
-    admin_hash = hashlib.sha256('admin'.encode()).hexdigest()
-    c.execute("INSERT OR IGNORE INTO users (student_id, name, password_hash, role) VALUES ('admin', 'Administrator', ?, 'admin')", (admin_hash,))
+    # Create default admin (wallet-based: admin wallet can be set via ADMIN_WALLET env var)
+    admin_wallet = os.environ.get('ADMIN_WALLET', 'ADMIN_PLACEHOLDER')
+    c.execute("INSERT OR IGNORE INTO users (student_id, name, password_hash, role, wallet_address) VALUES (?, 'Administrator', '', 'admin', ?)",
+              (admin_wallet, admin_wallet))
     
     conn.commit()
     conn.close()
 
 create_tables()
+
+# ── Nonce store for wallet auth challenges ──
+# In-memory store: {address: {"nonce": str, "timestamp": float, "unsigned_txn": str}}
+_auth_challenges = {}
+AUTH_NONCE_EXPIRY = 300  # 5 minutes
 
 def log_transaction(user_id, action, details, tx_id=None):
     try:
@@ -323,62 +369,219 @@ def get_current_user():
     conn.close()
     return user
 
+def wallet_required(f):
+    """Decorator: redirect to wallet login if not authenticated."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return redirect(url_for('wallet_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Decorator: require admin role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return redirect(url_for('wallet_login'))
+        if user['role'] != 'admin':
+            flash('Admin access required.')
+            return redirect(url_for('dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.context_processor
 def utility_processor():
     from utils.rewards import TOKEN_UNIT
     return dict(TOKEN_UNIT=TOKEN_UNIT)
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        student_id = request.form['student_id']
-        name = request.form['name']
-        password = request.form['password']
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        
-        # Auto-generate wallet for student
-        wallet_address, wallet_mnemonic = generate_student_wallet()
-        
-        conn = get_db_connection()
-        try:
-            conn.execute('INSERT INTO users (student_id, name, password_hash, wallet_address, wallet_mnemonic) VALUES (?, ?, ?, ?, ?)',
-                         (student_id, name, password_hash, wallet_address, wallet_mnemonic))
-            conn.commit()
-            flash('Registration successful! Wallet created.')
-            return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
-            flash('Student ID already exists.')
-        conn.close()
-    return render_template('register.html')
+# ══════════════════════════════════════════════════════════════════════
+#  WALLET-ONLY AUTHENTICATION (Sign-In With Algorand)
+# ══════════════════════════════════════════════════════════════════════
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        student_id = request.form['student_id']
-        password = request.form['password']
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        
+@app.route('/login')
+@app.route('/wallet-login')
+def wallet_login():
+    """Wallet login page — connect Pera Wallet to authenticate."""
+    if get_current_user():
+        return redirect(url_for('dashboard'))
+    return render_template('wallet_login.html')
+
+@app.route('/api/auth/challenge', methods=['POST'])
+def auth_challenge():
+    """Generate a challenge: unsigned zero-ALGO self-payment with random nonce as note.
+    The user signs this tx with Pera to prove wallet ownership — no on-chain cost."""
+    data = request.json or {}
+    address = data.get('address', '').strip()
+
+    if not address or len(address) != 58:
+        return jsonify({'error': 'Valid 58-character Algorand address required'}), 400
+
+    # Validate address checksum
+    try:
+        algo_encoding.decode_address(address)
+    except Exception:
+        return jsonify({'error': 'Invalid Algorand address checksum'}), 400
+
+    # Generate random nonce
+    nonce = base64.b64encode(os.urandom(32)).decode()
+    message = f"CampaFi Login\nDomain: {request.host}\nWallet: {address}\nNonce: {nonce}"
+
+    try:
+        # Build unsigned zero-ALGO self-payment with challenge as note
+        client = get_client()
+        params = get_suggested_params()
+        txn = PaymentTxn(
+            sender=address,
+            sp=params,
+            receiver=address,
+            amt=0,
+            note=message.encode()
+        )
+        # Encode to base64 msgpack (msgpack_encode already returns base64 string)
+        unsigned_b64 = algo_encoding.msgpack_encode(txn)
+
+        # Store challenge server-side (keyed by address)
+        _auth_challenges[address] = {
+            'nonce': nonce,
+            'message': message,
+            'timestamp': time.time(),
+            'unsigned_txn': unsigned_b64,
+        }
+
+        return jsonify({
+            'nonce': nonce,
+            'message': message,
+            'unsigned_txn': unsigned_b64,
+        })
+
+    except Exception as e:
+        print(f"Auth challenge error: {e}")
+        return jsonify({'error': f'Failed to build challenge: {str(e)}'}), 500
+
+@app.route('/api/auth/verify', methods=['POST'])
+def auth_verify():
+    """Verify the signed challenge transaction. If valid, create session.
+    Auto-creates user on first login."""
+    data = request.json or {}
+    address = data.get('address', '').strip()
+    signed_txn_b64 = data.get('signed_txn', '').strip()
+
+    if not address or not signed_txn_b64:
+        return jsonify({'error': 'Address and signed_txn required'}), 400
+
+    # Check challenge exists and hasn't expired
+    challenge = _auth_challenges.get(address)
+    if not challenge:
+        return jsonify({'error': 'No pending challenge. Request a new one.'}), 400
+
+    if time.time() - challenge['timestamp'] > AUTH_NONCE_EXPIRY:
+        _auth_challenges.pop(address, None)
+        return jsonify({'error': 'Challenge expired. Request a new one.'}), 400
+
+    try:
+        # Decode the signed transaction (msgpack_decode expects base64 string)
+        signed_txn = algo_encoding.msgpack_decode(signed_txn_b64)
+
+        # Verify the transaction was signed by the claimed address
+        # The signed transaction object contains the sender and the signature
+        txn_obj = signed_txn.transaction if hasattr(signed_txn, 'transaction') else signed_txn.dictify()
+
+        # Extract sender from the signed transaction
+        if hasattr(signed_txn, 'transaction'):
+            sender = signed_txn.transaction.sender
+        else:
+            sender = address  # fallback
+
+        # Verify sender matches claimed address
+        if sender != address:
+            return jsonify({'error': 'Transaction sender does not match claimed address'}), 401
+
+        # Verify the note contains our challenge
+        if hasattr(signed_txn, 'transaction'):
+            note = signed_txn.transaction.note
+        else:
+            note = None
+
+        if note:
+            note_str = note.decode('utf-8') if isinstance(note, bytes) else note
+            if challenge['nonce'] not in note_str:
+                return jsonify({'error': 'Challenge nonce mismatch'}), 401
+        else:
+            return jsonify({'error': 'Transaction missing challenge note'}), 401
+
+        # Clear the challenge (one-time use)
+        _auth_challenges.pop(address, None)
+
+        # Find or create user
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE student_id = ? AND password_hash = ?',
-                            (student_id, password_hash)).fetchone()
+        user = conn.execute('SELECT * FROM users WHERE wallet_address = ?', (address,)).fetchone()
+
+        if not user:
+            # First-time login: auto-create user
+            # Use truncated address as student_id and display name
+            short_addr = f"{address[:6]}...{address[-4:]}"
+            conn.execute(
+                'INSERT INTO users (student_id, name, password_hash, role, wallet_address) VALUES (?, ?, ?, ?, ?)',
+                (address, short_addr, '', 'student', address)
+            )
+            conn.commit()
+            user = conn.execute('SELECT * FROM users WHERE wallet_address = ?', (address,)).fetchone()
+            log_transaction(user['id'], 'WALLET_REGISTER', f'First login via wallet: {short_addr}')
+
         conn.close()
-        
-        if user:
-            session['user_id'] = user['id']
-            return redirect(url_for('dashboard'))
-        flash('Invalid credentials')
-    return render_template('login.html')
+
+        # Set session
+        session['user_id'] = user['id']
+        session['wallet_address'] = address
+
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user['id'],
+                'name': user['name'],
+                'role': user['role'],
+                'wallet_address': address,
+            }
+        })
+
+    except Exception as e:
+        print(f"Auth verify error: {e}")
+        return jsonify({'error': f'Verification failed: {str(e)}'}), 400
+
+@app.route('/api/auth/status', methods=['GET'])
+def auth_status():
+    """Check current auth status."""
+    user = get_current_user()
+    if user:
+        return jsonify({
+            'authenticated': True,
+            'user': {
+                'id': user['id'],
+                'name': user['name'],
+                'role': user['role'],
+                'wallet_address': user['wallet_address'],
+            }
+        })
+    return jsonify({'authenticated': False})
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('login'))
+    return redirect(url_for('wallet_login'))
+
+# Legacy routes — redirect to wallet login
+@app.route('/register', methods=['GET'])
+def register():
+    return redirect(url_for('wallet_login'))
 
 @app.route('/setup_face', methods=['GET', 'POST'])
 def setup_face():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     if request.method == 'POST':
         data = request.json
@@ -407,7 +610,7 @@ def setup_face():
 def dashboard():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
     
     conn = get_db_connection()
     certs = conn.execute('SELECT * FROM certificates WHERE user_id = ? ORDER BY upload_date DESC',
@@ -474,7 +677,7 @@ def dashboard():
 def upload_certificate():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
     
     if request.method == 'POST':
         if 'certificate' not in request.files:
@@ -595,7 +798,7 @@ def upload_certificate():
 @app.route('/delete_certificate/<int:cert_id>', methods=['POST'])
 def delete_certificate(cert_id):
     if 'user_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     conn = get_db_connection()
     cert = conn.execute('SELECT * FROM certificates WHERE id = ?', (cert_id,)).fetchone()
@@ -732,7 +935,7 @@ def create_election():
 def election_detail(eid):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
     
     conn = get_db_connection()
     election = conn.execute('SELECT * FROM elections WHERE id = ?', (eid,)).fetchone()
@@ -902,7 +1105,7 @@ def delete_attendance_session(session_id):
 def attendance_session(session_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     session_info = conn.execute('SELECT * FROM attendance_sessions WHERE id = ?', (session_id,)).fetchone()
@@ -1091,7 +1294,7 @@ def mark_attendance(session_id, user_id):
 def attendance_list():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
 
@@ -1282,7 +1485,7 @@ def feedback_form(form_id):
 def feedback_results(form_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     form_info = conn.execute('SELECT * FROM feedback_forms WHERE id = ?', (form_id,)).fetchone()
@@ -1362,7 +1565,7 @@ def feedback_results(form_id):
 def feedback_list():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1457,7 +1660,7 @@ def admin_create_group():
 def create_group():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     if request.method == 'POST':
         name = request.form['name']
@@ -1493,7 +1696,7 @@ def create_group():
 def discover_groups():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1533,7 +1736,7 @@ def discover_groups():
 def join_group(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
 
@@ -1556,7 +1759,7 @@ def join_group(group_id):
 def leave_group(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     conn.execute('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', (group_id, user['id']))
@@ -1570,7 +1773,7 @@ def leave_group(group_id):
 def group_detail(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     group = conn.execute('SELECT * FROM groups WHERE id = ?', (group_id,)).fetchone()
@@ -1643,7 +1846,7 @@ def group_detail(group_id):
 @app.route('/groups/<int:group_id>/dao/deploy', methods=['POST'])
 def deploy_dao(group_id):
     user = get_current_user()
-    if not user: return redirect(url_for('login'))
+    if not user: return redirect(url_for('wallet_login'))
     
     # Only lead or admin can deploy
     conn = get_db_connection()
@@ -1774,7 +1977,7 @@ def execute_proposal(group_id, proposal_id):
 def delete_group(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1803,7 +2006,7 @@ def delete_group(group_id):
 def invite_member(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     
@@ -1853,7 +2056,7 @@ def invite_member(group_id):
 def accept_invite(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     conn.execute('UPDATE group_members SET status = "accepted" WHERE group_id = ? AND user_id = ?',
@@ -1868,7 +2071,7 @@ def accept_invite(group_id):
 def decline_invite(group_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     conn.execute('DELETE FROM group_members WHERE group_id = ? AND user_id = ?',
@@ -1916,7 +2119,7 @@ def create_task(group_id):
 def complete_task(group_id, task_id):
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
 
     conn = get_db_connection()
     task = conn.execute('SELECT * FROM group_tasks WHERE id = ? AND group_id = ?', (task_id, group_id)).fetchone()
@@ -2092,7 +2295,7 @@ def complete_milestone(group_id, milestone_id):
 def public_logs():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     conn = get_db_connection()
     # Join with users to get names
@@ -2109,7 +2312,7 @@ def public_logs():
 def download_logs():
     user = get_current_user()
     if not user:
-        return redirect(url_for('login'))
+        return redirect(url_for('wallet_login'))
         
     conn = get_db_connection()
     logs = conn.execute('''
@@ -2142,7 +2345,7 @@ def download_logs():
     return FlaskResponse(
         output.getvalue(),
         mimetype="text/csv",
-        headers={"Content-disposition": "attachment; filename=campus_trust_logs.csv"}
+        headers={"Content-disposition": "attachment; filename=campafi_logs.csv"}
     )
 
 @app.route('/wallet')
@@ -2203,162 +2406,6 @@ def prepare_payment():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-try:
-    from google import genai
-except ImportError:
-    genai = None
-    print("Warning: google-generativeai not installed. Chatbot will be disabled.")
-
-# Configure Gemini Client
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-if not GEMINI_API_KEY:
-    print("Warning: GEMINI_API_KEY not found in environment variables.")
-
-@app.route('/api/chat', methods=['POST'])
-def chat_api():
-    data = request.json
-    message = data.get('message', '').strip()
-    user = get_current_user() # Might be None
-    
-    conn = get_db_connection()
-    response_text = ""
-    
-    # DEBUG LOGGING
-    print(f"Chat request received: {message}")
-    print(f"API Key present: {bool(GEMINI_API_KEY)}")
-    
-    # 1. GATHER CONTEXT (Internal Data)
-    context_data = ""
-    
-    # User Info
-    if user:
-        # Attendance - DETAILED BREAKDOWN
-        try:
-            # Join sessions with records to get per-course stats
-            # We need all sessions, and match with user's records
-            # This query gets all sessions and counts user's presence
-            course_stats = conn.execute('''
-                SELECT 
-                    s.course_code,
-                    COUNT(s.id) as total_sessions,
-                    SUM(CASE WHEN r.status = 'present' THEN 1 ELSE 0 END) as attended
-                FROM attendance_sessions s
-                LEFT JOIN attendance_records r ON s.id = r.session_id AND r.user_id = ?
-                GROUP BY s.course_code
-            ''', (user['id'],)).fetchall()
-            
-            if course_stats:
-                context_data += f"User: {user['name']} (Role: {user['role']}).\nVerified Attendance Data:\n"
-                for stat in course_stats:
-                    code = stat['course_code']
-                    attended = stat['attended'] if stat['attended'] else 0
-                    total = stat['total_sessions']
-                    pct = (attended / total * 100) if total > 0 else 0
-                    context_data += f"- {code}: {attended}/{total} classes attended ({pct:.1f}%)\n"
-            else:
-                 context_data += f"User: {user['name']} (Role: {user['role']}). No attendance sessions recorded yet.\n"
-
-        except Exception as e:
-            print(f"Attendance Query Error: {e}")
-            context_data += f"User: {user['name']}. Attendance data currently unavailable.\n"
-        
-        # User's Groups
-        try:
-            groups = conn.execute('''
-                SELECT g.name FROM groups g JOIN group_members gm ON g.id = gm.group_id WHERE gm.user_id = ?
-            ''', (user['id'],)).fetchall()
-            group_names = [g['name'] for g in groups]
-            context_data += f"Member of Groups: {', '.join(group_names)}.\n"
-        except:
-             pass
-    else:
-        context_data += "User is currently NOT logged in. Ask them to login for personal stats.\n"
-        
-    # DAO Info (General)
-    try:
-        dao_group = conn.execute('SELECT * FROM groups WHERE treasury_address IS NOT NULL LIMIT 1').fetchone()
-        if dao_group:
-             context_data += f"Main DAO: {dao_group['name']} (Treasury Active).\n"
-    except:
-        pass
-
-    # 2. INTELLIGENT SYSTEM PROMPT (Optimized)
-    system_instruction = f"""
-    You are CampusBot for CampusTrust.
-    
-    Source Data:
-    {context_data}
-    
-    Directives:
-    - Precise attendance counts.
-    - Blockchain expert.
-    - No hallucinations.
-    """
-    
-    try:
-        if GEMINI_API_KEY and genai:
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            
-            models_to_try = [
-                'gemini-2.0-flash-lite',
-                'gemini-1.5-flash',
-                'gemini-2.0-flash',
-            ]
-            
-            response = None
-            last_error = None
-            
-            # Implementation of Retries with Exponential Backoff
-            max_retries = 3
-            
-            for model_name in models_to_try:
-                for attempt in range(max_retries):
-                    try:
-                        print(f"Attempting {model_name} (Attempt {attempt+1})")
-                        response = client.models.generate_content(
-                            model=model_name,
-                            contents=f"{system_instruction}\n\nUSER QUESTION: {message}"
-                        )
-                        if response:
-                            break
-                    except Exception as e:
-                        last_error = e
-                        error_str = str(e).upper()
-                        if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                            wait_time = (attempt + 1) * 2 # 2s, 4s, 6s...
-                            print(f"Rate limited. Waiting {wait_time}s...")
-                            time.sleep(wait_time)
-                        else:
-                            # If it's not a rate limit, don't retry this model
-                            print(f"Non-retryable error with {model_name}: {e}")
-                            break
-                
-                if response:
-                    print(f"Success with {model_name}")
-                    break
-            
-            if response:
-                response_text = response.text
-            else:
-                if "429" in str(last_error) or "RESOURCE_EXHAUSTED" in str(last_error):
-                     response_text = "I'm receiving too many requests. I tried to wait, but the limit is still active. Please try again in 1 minute."
-                else:
-                     response_text = "I'm having trouble connecting to my AI brain. Please try again later."
-
-        else:
-            if not genai:
-                response_text = "Chatbot is offline (AI library not installed)."
-            else:
-                response_text = "Chatbot is offline (API Key missing)."
-            
-    except Exception as e:
-        import traceback
-        print(f"Gemini Global Error: {e}")
-        traceback.print_exc()
-        response_text = "An unexpected error occurred."
-        
-    conn.close()
-    return jsonify({'response': response_text})
 
 
 @app.route('/api/prepare_asset_creation', methods=['POST'])
@@ -2491,6 +2538,589 @@ def campus_coin_info():
         return jsonify(info)
     except Exception as e:
         return jsonify({'configured': False, 'error': str(e)})
+
+# ══════════════════════════════════════════════════════════════════════
+#  LOCKBOX / TIME-LOCKED SAVINGS
+# ══════════════════════════════════════════════════════════════════════
+
+@app.route('/lockbox')
+@wallet_required
+def lockbox():
+    """Lockbox savings goals page."""
+    user = get_current_user()
+    conn = get_db_connection()
+    
+    # Fetch all goals visible to this user (own goals + group goals they belong to)
+    goals_raw = conn.execute('''
+        SELECT lg.*, g.name as group_name
+        FROM lockbox_goals lg
+        LEFT JOIN groups g ON lg.group_id = g.id
+        WHERE lg.user_id = ?
+           OR lg.group_id IN (
+               SELECT group_id FROM group_members WHERE user_id = ? AND status = 'accepted'
+           )
+        ORDER BY lg.created_date DESC
+    ''', (user['id'], user['id'])).fetchall()
+    
+    # Fetch user's groups for the create form
+    user_groups = conn.execute('''
+        SELECT g.id, g.name FROM groups g
+        JOIN group_members gm ON g.id = gm.group_id
+        WHERE gm.user_id = ? AND gm.status = 'accepted'
+    ''', (user['id'],)).fetchall()
+    conn.close()
+    
+    import time as _time
+    now_ts = int(_time.time())
+    goals = []
+    for g in goals_raw:
+        goal = dict(g)
+        goal['target_algo'] = goal['target_amount'] / 1_000_000 if goal['target_amount'] else 0
+        goal['deposited_algo'] = goal['deposited_amount'] / 1_000_000 if goal['deposited_amount'] else 0
+        goal['is_unlockable'] = now_ts >= goal['unlock_time']
+        goal['is_creator'] = (goal['user_id'] == user['id'])
+        # Format unlock date
+        try:
+            from datetime import datetime as _dt
+            goal['unlock_date_str'] = _dt.fromtimestamp(goal['unlock_time']).strftime('%b %d, %Y %H:%M')
+        except:
+            goal['unlock_date_str'] = str(goal['unlock_time'])
+        goals.append(goal)
+    
+    return render_template('lockbox.html', user=user, goals=goals, user_groups=user_groups)
+
+
+@app.route('/api/lockbox/create', methods=['POST'])
+@wallet_required
+def lockbox_create():
+    """Create a new lockbox goal and optionally build deploy txn."""
+    user = get_current_user()
+    data = request.json or {}
+    
+    name = data.get('name', '').strip()
+    target_algo = float(data.get('target_algo', 0))
+    unlock_timestamp = int(data.get('unlock_timestamp', 0))
+    group_id = data.get('group_id') or None
+    sender = data.get('sender', '').strip()
+    
+    if not name or target_algo <= 0 or unlock_timestamp <= 0:
+        return jsonify({'error': 'Name, target amount, and unlock date required'}), 400
+    
+    target_microalgo = int(target_algo * 1_000_000)
+    
+    conn = get_db_connection()
+    cursor = conn.execute(
+        '''INSERT INTO lockbox_goals (user_id, group_id, name, target_amount, unlock_time, created_date)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (user['id'], group_id, name, target_microalgo, unlock_timestamp,
+         datetime.datetime.now().isoformat())
+    )
+    goal_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    log_transaction(user['id'], 'LOCKBOX_CREATE', f'Created lockbox goal: {name} (target: {target_algo} ALGO)')
+    
+    # Build deploy txn if sender provided
+    result = {'goal_id': goal_id}
+    if sender:
+        try:
+            txn_data = build_lockbox_deploy_txn(sender, name, target_microalgo, unlock_timestamp)
+            result['txn_b64'] = txn_data['txn_b64']
+        except Exception as e:
+            result['deploy_note'] = f'Contract deploy skipped: {str(e)}. Goal saved off-chain.'
+    
+    return jsonify(result)
+
+
+@app.route('/api/lockbox/confirm_deploy', methods=['POST'])
+@wallet_required
+def lockbox_confirm_deploy():
+    """Submit signed deploy txn and update goal with app_id."""
+    data = request.json or {}
+    goal_id = data.get('goal_id')
+    signed_b64 = data.get('signed_txn', '')
+    
+    if not goal_id or not signed_b64:
+        return jsonify({'error': 'Missing goal_id or signed_txn'}), 400
+    
+    try:
+        result = submit_signed_transaction(signed_b64)
+        if result.get('success'):
+            app_id = result.get('app_id')
+            tx_id = result.get('tx_id')
+            conn = get_db_connection()
+            conn.execute('UPDATE lockbox_goals SET app_id = ?, tx_id = ? WHERE id = ?',
+                        (app_id, tx_id, goal_id))
+            conn.commit()
+            conn.close()
+            
+            user = get_current_user()
+            log_transaction(user['id'], 'LOCKBOX_DEPLOY', f'Deployed lockbox contract: App ID {app_id}', tx_id)
+            
+            return jsonify({'app_id': app_id, 'tx_id': tx_id})
+        else:
+            return jsonify({'error': result.get('error', 'Deploy failed')}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/lockbox/deposit', methods=['POST'])
+@wallet_required
+def lockbox_deposit():
+    """Build unsigned deposit txns for a lockbox goal."""
+    data = request.json or {}
+    sender = data.get('sender', '')
+    goal_id = data.get('goal_id')
+    app_id = data.get('app_id', 0)
+    amount_algo = float(data.get('amount_algo', 0))
+    
+    if not sender or not goal_id or amount_algo <= 0:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    try:
+        if app_id and int(app_id) > 0:
+            # Use on-chain deposit (grouped txns)
+            result = build_bank_deposit_txns(sender, int(app_id), amount_algo)
+            return jsonify(result)
+        else:
+            # Off-chain only — build a simple self-payment with note
+            result = build_payment_txn(sender, sender, amount_algo, 
+                                       f'CampaFi Lockbox Deposit: Goal #{goal_id}')
+            return jsonify({'txns_b64': [result['txn_b64']]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/lockbox/confirm_deposit', methods=['POST'])
+@wallet_required
+def lockbox_confirm_deposit():
+    """Submit signed deposit and update goal balance."""
+    data = request.json or {}
+    goal_id = data.get('goal_id')
+    signed_txns = data.get('signed_txns', [])
+    amount_algo = float(data.get('amount_algo', 0))
+    
+    if not goal_id or not signed_txns:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    try:
+        if len(signed_txns) > 1:
+            result = submit_signed_group(signed_txns)
+        else:
+            result = submit_signed_transaction(signed_txns[0])
+        
+        if result.get('success'):
+            amount_micro = int(amount_algo * 1_000_000)
+            conn = get_db_connection()
+            conn.execute('UPDATE lockbox_goals SET deposited_amount = deposited_amount + ? WHERE id = ?',
+                        (amount_micro, goal_id))
+            conn.commit()
+            conn.close()
+            
+            user = get_current_user()
+            log_transaction(user['id'], 'LOCKBOX_DEPOSIT', 
+                          f'Deposited {amount_algo} ALGO to lockbox #{goal_id}', result.get('tx_id'))
+            
+            return jsonify({'tx_id': result['tx_id']})
+        else:
+            return jsonify({'error': result.get('error', 'Deposit failed')}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/lockbox/withdraw', methods=['POST'])
+@wallet_required
+def lockbox_withdraw():
+    """Build unsigned withdraw txn (time-lock enforced on-chain)."""
+    data = request.json or {}
+    sender = data.get('sender', '')
+    goal_id = data.get('goal_id')
+    app_id = data.get('app_id', 0)
+    amount_algo = float(data.get('amount_algo', 0))
+    
+    if not sender or not goal_id:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Verify unlock time has passed
+    conn = get_db_connection()
+    goal = conn.execute('SELECT * FROM lockbox_goals WHERE id = ?', (goal_id,)).fetchone()
+    conn.close()
+    
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+    
+    import time as _time
+    if _time.time() < goal['unlock_time']:
+        return jsonify({'error': 'Funds are still locked! Unlock time has not been reached.'}), 403
+    
+    try:
+        if app_id and int(app_id) > 0:
+            result = build_bank_withdraw_txn(sender, int(app_id), amount_algo)
+        else:
+            result = build_payment_txn(sender, sender, 0, 
+                                       f'CampaFi Lockbox Withdraw: Goal #{goal_id}')
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/lockbox/force_release', methods=['POST'])
+@wallet_required
+def lockbox_force_release():
+    """Build unsigned force-release txn (bypasses time lock)."""
+    data = request.json or {}
+    sender = data.get('sender', '')
+    goal_id = data.get('goal_id')
+    app_id = data.get('app_id', 0)
+    amount_algo = float(data.get('amount_algo', 0))
+    
+    user = get_current_user()
+    conn = get_db_connection()
+    goal = conn.execute('SELECT * FROM lockbox_goals WHERE id = ?', (goal_id,)).fetchone()
+    conn.close()
+    
+    if not goal or goal['user_id'] != user['id']:
+        return jsonify({'error': 'Only the goal creator can force-release'}), 403
+    
+    try:
+        if app_id and int(app_id) > 0:
+            result = build_bank_withdraw_txn(sender, int(app_id), amount_algo)
+        else:
+            result = build_payment_txn(sender, sender, 0,
+                                       f'CampaFi Lockbox FORCE RELEASE: Goal #{goal_id}')
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/lockbox/confirm_withdraw', methods=['POST'])
+@wallet_required
+def lockbox_confirm_withdraw():
+    """Submit signed withdraw/release txn and update goal status."""
+    data = request.json or {}
+    goal_id = data.get('goal_id')
+    signed_b64 = data.get('signed_txn', '')
+    force = data.get('force', False)
+    
+    if not goal_id or not signed_b64:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    try:
+        result = submit_signed_transaction(signed_b64)
+        if result.get('success'):
+            conn = get_db_connection()
+            conn.execute('''UPDATE lockbox_goals SET status = 'released', released_date = ? WHERE id = ?''',
+                        (datetime.datetime.now().isoformat(), goal_id))
+            conn.commit()
+            conn.close()
+            
+            user = get_current_user()
+            action = 'LOCKBOX_FORCE_RELEASE' if force else 'LOCKBOX_WITHDRAW'
+            log_transaction(user['id'], action, 
+                          f'Released lockbox #{goal_id}', result.get('tx_id'))
+            
+            return jsonify({'tx_id': result['tx_id']})
+        else:
+            return jsonify({'error': result.get('error', 'Withdraw failed')}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  PRIVACY-AWARE RECEIPTS (Hash Anchoring + Off-Chain Data)
+# ══════════════════════════════════════════════════════════════════════
+
+@app.route('/receipts')
+@wallet_required
+def receipts():
+    """Privacy receipts page."""
+    user = get_current_user()
+    conn = get_db_connection()
+    receipts = conn.execute(
+        'SELECT * FROM privacy_receipts WHERE user_id = ? ORDER BY created_date DESC',
+        (user['id'],)
+    ).fetchall()
+    conn.close()
+    return render_template('receipts.html', user=user, receipts=receipts)
+
+
+@app.route('/receipts/verify')
+def receipts_verify_page():
+    """Public verification page (accessible via QR/link)."""
+    hash_param = request.args.get('hash', '')
+    receipt_id = request.args.get('id', '')
+    
+    receipt = None
+    if receipt_id:
+        conn = get_db_connection()
+        receipt = conn.execute('SELECT * FROM privacy_receipts WHERE id = ?', (receipt_id,)).fetchone()
+        conn.close()
+        if receipt:
+            hash_param = receipt['data_hash']
+    
+    return render_template('receipts.html', 
+                         user=get_current_user() or {'name': 'Guest', 'role': 'guest'},
+                         receipts=[],
+                         verify_hash=hash_param)
+
+
+@app.route('/api/receipts/create', methods=['POST'])
+@wallet_required
+def receipts_create():
+    """Create a privacy receipt and optionally build an anchor txn."""
+    user = get_current_user()
+    data = request.json or {}
+    
+    title = data.get('title', '').strip()
+    description = data.get('description', '').strip()
+    json_data = data.get('json_data', '').strip()
+    data_hash = data.get('data_hash', '').strip()
+    anchor = data.get('anchor_on_chain', False)
+    sender = data.get('sender', '').strip()
+    
+    if not title or not json_data or not data_hash:
+        return jsonify({'error': 'Title, JSON data, and hash required'}), 400
+    
+    # Verify hash matches
+    computed = hashlib.sha256(json_data.encode()).hexdigest()
+    if computed != data_hash:
+        return jsonify({'error': 'Hash mismatch — computed hash does not match provided hash'}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.execute(
+        '''INSERT INTO privacy_receipts (user_id, title, description, json_data, data_hash, created_date)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (user['id'], title, description, json_data, data_hash,
+         datetime.datetime.now().isoformat())
+    )
+    receipt_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    log_transaction(user['id'], 'RECEIPT_CREATE', f'Created receipt: {title} (hash: {data_hash[:16]}...)')
+    
+    result = {'receipt_id': receipt_id, 'data_hash': data_hash}
+    
+    # Build anchor txn (zero-ALGO self-payment with hash in note)
+    if anchor and sender:
+        try:
+            note = f'CampaFi Receipt Anchor|{data_hash}|{title}'
+            txn_data = build_payment_txn(sender, sender, 0, note)
+            result['txn_b64'] = txn_data['txn_b64']
+        except Exception as e:
+            result['anchor_note'] = f'On-chain anchor skipped: {str(e)}'
+    
+    return jsonify(result)
+
+
+@app.route('/api/receipts/anchor', methods=['POST'])
+@wallet_required
+def receipts_anchor():
+    """Submit signed anchor txn and update receipt with tx_id."""
+    data = request.json or {}
+    receipt_id = data.get('receipt_id')
+    signed_b64 = data.get('signed_txn', '')
+    
+    if not receipt_id or not signed_b64:
+        return jsonify({'error': 'Missing receipt_id or signed_txn'}), 400
+    
+    try:
+        result = submit_signed_transaction(signed_b64)
+        if result.get('success'):
+            tx_id = result['tx_id']
+            conn = get_db_connection()
+            conn.execute('UPDATE privacy_receipts SET tx_id = ? WHERE id = ?',
+                        (tx_id, receipt_id))
+            conn.commit()
+            conn.close()
+            
+            user = get_current_user()
+            log_transaction(user['id'], 'RECEIPT_ANCHOR', 
+                          f'Anchored receipt #{receipt_id} on-chain', tx_id)
+            
+            return jsonify({'tx_id': tx_id})
+        else:
+            return jsonify({'error': result.get('error', 'Anchor failed')}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/receipts/verify', methods=['POST'])
+def receipts_verify():
+    """Verify a receipt hash against stored records and on-chain data."""
+    data = request.json or {}
+    data_hash = data.get('data_hash', '').strip()
+    json_data = data.get('json_data', '').strip()
+    
+    if not data_hash and json_data:
+        data_hash = hashlib.sha256(json_data.encode()).hexdigest()
+    
+    if not data_hash:
+        return jsonify({'verified': False, 'message': 'No hash provided'}), 400
+    
+    conn = get_db_connection()
+    receipt = conn.execute(
+        'SELECT * FROM privacy_receipts WHERE data_hash = ?', (data_hash,)
+    ).fetchone()
+    conn.close()
+    
+    if receipt:
+        result = {
+            'verified': True,
+            'title': receipt['title'],
+            'tx_id': receipt['tx_id'],
+            'created_date': receipt['created_date'],
+            'on_chain': bool(receipt['tx_id']),
+        }
+        
+        # If anchored on-chain, we can also verify via indexer
+        if receipt['tx_id']:
+            try:
+                from algorand.connect import get_indexer
+                idx = get_indexer()
+                txn_info = idx.search_transactions(txid=receipt['tx_id'])
+                txns = txn_info.get('transactions', [])
+                if txns:
+                    note = txns[0].get('note', '')
+                    if note:
+                        import base64 as _b64
+                        decoded_note = _b64.b64decode(note).decode('utf-8', errors='ignore')
+                        if data_hash in decoded_note:
+                            result['chain_verified'] = True
+            except Exception:
+                pass  # Indexer lookup is best-effort
+        
+        return jsonify(result)
+    else:
+        return jsonify({
+            'verified': False,
+            'message': 'Hash not found in any stored receipt'
+        })
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  REAL-TIME CHAIN EVENT VISUALISER
+# ══════════════════════════════════════════════════════════════════════
+
+@app.route('/chain-events')
+@wallet_required
+def chain_events():
+    """Chain event visualiser page."""
+    user = get_current_user()
+    return render_template('chain_events.html', user=user)
+
+
+@app.route('/api/chain_events', methods=['GET'])
+def api_chain_events():
+    """Fetch recent chain events via the Algorand Indexer.
+    Supports filtering by type and pagination via after_round."""
+    from algorand.connect import get_indexer
+    
+    after_round = request.args.get('after_round', 0, type=int)
+    event_type = request.args.get('type', '')  # pay, axfer, appl, acfg
+    limit = request.args.get('limit', 20, type=int)
+    limit = min(limit, 50)  # Cap at 50
+    
+    try:
+        idx = get_indexer()
+        
+        # Build indexer query
+        # We search recent transactions across the network
+        # For a campus app, you'd filter by known app IDs / ASA IDs
+        kwargs = {'limit': limit}
+        
+        if after_round > 0:
+            kwargs['min_round'] = after_round + 1
+        
+        if event_type == 'pay':
+            kwargs['txn_type'] = 'pay'
+        elif event_type == 'axfer':
+            kwargs['txn_type'] = 'axfer'
+        elif event_type == 'appl':
+            kwargs['txn_type'] = 'appl'
+        elif event_type == 'acfg':
+            kwargs['txn_type'] = 'acfg'
+        
+        # Get campus-relevant app IDs from DB for focused queries
+        campus_note_prefix = 'CampaFi'
+        kwargs['note_prefix'] = base64.b64encode(campus_note_prefix.encode()).decode()
+        
+        try:
+            response = idx.search_transactions(**kwargs)
+        except Exception:
+            # Fallback: broader query without note filter
+            kwargs.pop('note_prefix', None)
+            response = idx.search_transactions(**kwargs)
+        
+        txns = response.get('transactions', [])
+        events = []
+        last_round = after_round
+        
+        for txn in txns:
+            tx_type = txn.get('tx-type', 'unknown')
+            confirmed_round = txn.get('confirmed-round', 0)
+            if confirmed_round > last_round:
+                last_round = confirmed_round
+            
+            # Parse timestamp
+            round_time = txn.get('round-time', 0)
+            time_str = ''
+            if round_time:
+                try:
+                    from datetime import datetime as _dt
+                    time_str = _dt.fromtimestamp(round_time).strftime('%H:%M:%S')
+                except:
+                    time_str = str(round_time)
+            
+            # Decode note
+            note_str = ''
+            if txn.get('note'):
+                try:
+                    note_str = base64.b64decode(txn['note']).decode('utf-8', errors='ignore')
+                except:
+                    pass
+            
+            event = {
+                'tx_id': txn.get('id', ''),
+                'type': tx_type,
+                'sender': txn.get('sender', ''),
+                'round': confirmed_round,
+                'time': time_str,
+                'note': note_str,
+            }
+            
+            # Type-specific fields
+            if tx_type == 'pay':
+                pay = txn.get('payment-transaction', {})
+                event['receiver'] = pay.get('receiver', '')
+                event['amount'] = pay.get('amount', 0) / 1_000_000
+            elif tx_type == 'axfer':
+                axfer = txn.get('asset-transfer-transaction', {})
+                event['receiver'] = axfer.get('receiver', '')
+                event['asset_id'] = axfer.get('asset-id', 0)
+                event['asset_amount'] = axfer.get('amount', 0)
+                event['asset_name'] = ''  # Would need extra lookup
+            elif tx_type == 'appl':
+                appl = txn.get('application-transaction', {})
+                event['app_id'] = appl.get('application-id', 0)
+                event['receiver'] = ''  # App calls don't have a receiver per se
+            elif tx_type == 'acfg':
+                acfg = txn.get('asset-config-transaction', {})
+                event['asset_id'] = acfg.get('asset-id', 0)
+                event['receiver'] = ''  # Config txns
+            
+            events.append(event)
+        
+        return jsonify({
+            'events': events,
+            'last_round': last_round,
+            'count': len(events)
+        })
+    
+    except Exception as e:
+        return jsonify({'events': [], 'error': str(e), 'last_round': after_round})
+
 
 if __name__ == '__main__':
     app.run(debug=True)

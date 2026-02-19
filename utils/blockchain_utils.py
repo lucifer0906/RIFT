@@ -1,5 +1,5 @@
 """
-CampusTrust – Blockchain utility functions
+CampaFi – Blockchain utility functions
 ============================================
 Builds notes / unsigned transactions for Algorand blockchain storage.
 Certificate box-storage operations now build unsigned txns that the

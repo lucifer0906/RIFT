@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+
+{% block title %}Chain Event Visualiser - CampaFi{% endblock %}
+
+{% block extra_css %}
+<style>
+    .visualiser-hero {
+        background: linear-gradient(135deg, #0a0a23 0%, #1a1a3e 50%, #2d1b69 100%);
+        border-radius: 20px;
+        padding: 2.5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    .visualiser-hero::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 50%;
+    }
+    .live-dot {
+        width: 12px;
+        height: 12px;
+        background: #43e97b;
+        border-radius: 50%;
+        display: inline-block;
+        animation: pulse-dot 1.5s infinite;
+    }
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    .event-feed {
+        max-height: 600px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+    .event-feed::-webkit-scrollbar {
+        width: 6px;
+    }
+    .event-feed::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    .event-feed::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+    .event-item {
+        border: none;
+        border-left: 4px solid transparent;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+        background: white;
+        animation: slideIn 0.3s ease-out;
+    }
+    .event-item:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .event-item.type-pay {
+        border-left-color: #667eea;
+    }
+    .event-item.type-axfer {
+        border-left-color: #f093fb;
+    }
+    .event-item.type-appl {
+        border-left-color: #43e97b;
+    }
+    .event-item.type-acfg {
+        border-left-color: #ffd93d;
+    }
+    .event-item.new-event {
+        animation: flashNew 1s ease-out;
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes flashNew {
+        0% { background: #e8f5e9; }
+        100% { background: white; }
+    }
+    .type-badge {
+        font-size: 0.65rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .type-badge.pay { background: #667eea22; color: #667eea; }
+    .type-badge.axfer { background: #f093fb22; color: #c850c0; }
+    .type-badge.appl { background: #43e97b22; color: #38a169; }
+    .type-badge.acfg { background: #ffd93d22; color: #b7791f; }
+    .filter-btn {
+        border-radius: 20px;
+        font-size: 0.8rem;
+        padding: 4px 12px;
+        font-weight: 600;
+    }
+    .filter-btn.active {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .stat-mini {
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        text-align: center;
+    }
+    .addr-short {
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+    }
+    .polling-indicator {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row fade-in">
+    <!-- Hero -->
+    <div class="col-12 mb-4">
+        <div class="visualiser-hero">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h2 class="fw-bold display-5 mb-2">
+                        <i class="fas fa-broadcast-tower me-3"></i>Chain Event Visualiser
+                    </h2>
+                    <p class="text-white text-opacity-75 lead mb-0">
+                        Real-time dashboard streaming relevant Algorand transactions — 
+                        payments, token transfers, and contract calls — with live filters and CSV export.
+                    </p>
+                </div>
+                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                    <div class="d-flex align-items-center justify-content-lg-end gap-3">
+                        <div>
+                            <span class="live-dot me-2"></span>
+                            <span class="text-white fw-bold" id="stream-status">Live</span>
+                        </div>
+                        <button class="btn btn-light rounded-pill px-3" id="toggle-stream-btn" onclick="toggleStream()">
+                            <i class="fas fa-pause me-1" id="stream-icon"></i>
+                            <span id="stream-btn-text">Pause</span>
+                        </button>
+                        <button class="btn btn-outline-light rounded-pill px-3" onclick="exportCSV()">
+                            <i class="fas fa-download me-1"></i>CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="col-12 mb-3">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-body p-3">
+                <div class="row align-items-center g-2">
+                    <div class="col-auto">
+                        <span class="fw-bold small text-muted"><i class="fas fa-filter me-1"></i>Filter:</span>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm filter-btn btn-primary active" data-filter="all" onclick="setFilter('all', this)">All</button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm filter-btn btn-outline-primary" data-filter="pay" onclick="setFilter('pay', this)">
+                            <i class="fas fa-paper-plane me-1"></i>Payments
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm filter-btn btn-outline-primary" data-filter="axfer" onclick="setFilter('axfer', this)">
+                            <i class="fas fa-exchange-alt me-1"></i>ASA Transfers
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm filter-btn btn-outline-primary" data-filter="appl" onclick="setFilter('appl', this)">
+                            <i class="fas fa-file-code me-1"></i>App Calls
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-sm filter-btn btn-outline-primary" data-filter="acfg" onclick="setFilter('acfg', this)">
+                            <i class="fas fa-cog me-1"></i>Asset Config
+                        </button>
+                    </div>
+                    <div class="col-auto ms-auto">
+                        <div class="input-group input-group-sm" style="width:260px;">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="search-filter" 
+                                   placeholder="Filter by address, TX ID, App ID..." oninput="applySearch()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="col-lg-3 mb-3">
+        <div class="stat-mini bg-primary bg-opacity-10">
+            <h4 class="fw-bold mb-0" id="stat-total-events">0</h4>
+            <small class="text-muted">Total Events</small>
+        </div>
+    </div>
+    <div class="col-lg-3 mb-3">
+        <div class="stat-mini bg-success bg-opacity-10">
+            <h4 class="fw-bold mb-0" id="stat-payments">0</h4>
+            <small class="text-muted">Payments</small>
+        </div>
+    </div>
+    <div class="col-lg-3 mb-3">
+        <div class="stat-mini bg-info bg-opacity-10">
+            <h4 class="fw-bold mb-0" id="stat-transfers">0</h4>
+            <small class="text-muted">ASA Transfers</small>
+        </div>
+    </div>
+    <div class="col-lg-3 mb-3">
+        <div class="stat-mini bg-warning bg-opacity-10">
+            <h4 class="fw-bold mb-0" id="stat-appcalls">0</h4>
+            <small class="text-muted">App Calls</small>
+        </div>
+    </div>
+
+    <!-- Event Feed -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm" style="border-radius:16px;">
+            <div class="card-header bg-white border-0 p-4 pb-2 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0">
+                    <i class="fas fa-stream me-2 text-primary"></i>Live Transaction Feed
+                </h5>
+                <small class="text-muted" id="last-update">Connecting...</small>
+            </div>
+            <div class="card-body p-3">
+                <div class="event-feed" id="event-feed">
+                    <div class="text-center py-5" id="feed-loading">
+                        <div class="spinner-border text-primary mb-3" role="status"></div>
+                        <p class="text-muted">Connecting to Algorand indexer...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Polling Indicator -->
+<div class="polling-indicator" id="polling-indicator" style="display:none;">
+    <i class="fas fa-circle-notch fa-spin me-2"></i>
+    <span id="polling-text">Fetching...</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── State ──
+let allEvents = [];
+let currentFilter = 'all';
+let searchQuery = '';
+let streamPaused = false;
+let pollInterval = null;
+let lastRound = 0;
+const POLL_INTERVAL_MS = 4000; // 4 seconds
+const MAX_EVENTS = 200;
+
+// ── Stats ──
+let stats = { total: 0, pay: 0, axfer: 0, appl: 0, acfg: 0 };
+
+function updateStats() {
+    document.getElementById('stat-total-events').textContent = stats.total;
+    document.getElementById('stat-payments').textContent = stats.pay;
+    document.getElementById('stat-transfers').textContent = stats.axfer;
+    document.getElementById('stat-appcalls').textContent = stats.appl;
+}
+
+// ── Render ──
+function renderEvent(ev) {
+    const typeClass = ev.type || 'pay';
+    const shortSender = ev.sender ? `${ev.sender.slice(0, 6)}…${ev.sender.slice(-4)}` : '—';
+    const shortReceiver = ev.receiver ? `${ev.receiver.slice(0, 6)}…${ev.receiver.slice(-4)}` : '—';
+
+    let detail = '';
+    if (ev.type === 'pay') {
+        detail = `<strong>${(ev.amount || 0).toFixed(4)} ALGO</strong>`;
+    } else if (ev.type === 'axfer') {
+        detail = `<strong>${ev.asset_amount || 0}</strong> <span class="text-muted">${ev.asset_name || 'ASA#' + (ev.asset_id || '?')}</span>`;
+    } else if (ev.type === 'appl') {
+        detail = `App <strong>#${ev.app_id || '?'}</strong>`;
+    } else if (ev.type === 'acfg') {
+        detail = `Asset Config <strong>#${ev.asset_id || 'new'}</strong>`;
+    }
+
+    return `
+        <div class="event-item type-${typeClass} new-event" 
+             data-type="${typeClass}" 
+             data-searchable="${ev.sender || ''} ${ev.receiver || ''} ${ev.tx_id || ''} ${ev.app_id || ''} ${ev.asset_id || ''}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex align-items-start gap-3">
+                    <div>
+                        <span class="type-badge ${typeClass}">${typeClass}</span>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="addr-short" title="${ev.sender || ''}">${shortSender}</span>
+                            <i class="fas fa-arrow-right text-muted small"></i>
+                            <span class="addr-short" title="${ev.receiver || ''}">${shortReceiver}</span>
+                        </div>
+                        <div class="small">${detail}</div>
+                        ${ev.note ? `<div class="small text-muted mt-1"><i class="fas fa-sticky-note me-1"></i>${ev.note.substring(0, 60)}${ev.note.length > 60 ? '...' : ''}</div>` : ''}
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="small text-muted">${ev.time || ''}</div>
+                    <a href="https://testnet.explorer.perawallet.app/tx/${ev.tx_id}" target="_blank" 
+                       class="small text-decoration-none" title="${ev.tx_id || ''}">
+                        ${ev.tx_id ? ev.tx_id.substring(0, 8) + '...' : ''}
+                        <i class="fas fa-external-link-alt ms-1" style="font-size:0.6rem;"></i>
+                    </a>
+                    <div class="small text-muted">Round ${ev.round || '?'}</div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function refreshFeed() {
+    const feed = document.getElementById('event-feed');
+    const filtered = allEvents.filter(ev => {
+        if (currentFilter !== 'all' && ev.type !== currentFilter) return false;
+        if (searchQuery) {
+            const searchable = `${ev.sender || ''} ${ev.receiver || ''} ${ev.tx_id || ''} ${ev.app_id || ''} ${ev.asset_id || ''}`.toLowerCase();
+            if (!searchable.includes(searchQuery.toLowerCase())) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        feed.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-satellite-dish fa-2x text-muted mb-2"></i>
+                <p class="text-muted">No events matching filters. Waiting for new transactions...</p>
+            </div>`;
+        return;
+    }
+
+    feed.innerHTML = filtered.map(renderEvent).join('');
+}
+
+// ── Polling ──
+async function fetchEvents() {
+    if (streamPaused) return;
+    
+    const indicator = document.getElementById('polling-indicator');
+    indicator.style.display = 'block';
+
+    try {
+        const params = new URLSearchParams({ after_round: lastRound });
+        if (currentFilter !== 'all') params.append('type', currentFilter);
+
+        const res = await fetch(`/api/chain_events?${params}`);
+        const json = await res.json();
+
+        if (json.events && json.events.length > 0) {
+            // Prepend new events
+            allEvents = [...json.events, ...allEvents].slice(0, MAX_EVENTS);
+            
+            // Update stats
+            json.events.forEach(ev => {
+                stats.total++;
+                if (ev.type === 'pay') stats.pay++;
+                else if (ev.type === 'axfer') stats.axfer++;
+                else if (ev.type === 'appl') stats.appl++;
+                else if (ev.type === 'acfg') stats.acfg++;
+            });
+            updateStats();
+
+            if (json.last_round) lastRound = json.last_round;
+            
+            refreshFeed();
+        }
+
+        document.getElementById('last-update').textContent = 
+            `Last update: ${new Date().toLocaleTimeString()} · Round ${lastRound}`;
+        document.getElementById('feed-loading')?.remove();
+
+    } catch (err) {
+        console.error('Polling error:', err);
+        document.getElementById('last-update').textContent = 'Error fetching events';
+    }
+
+    indicator.style.display = 'none';
+}
+
+// ── Controls ──
+function toggleStream() {
+    streamPaused = !streamPaused;
+    const icon = document.getElementById('stream-icon');
+    const text = document.getElementById('stream-btn-text');
+    const status = document.getElementById('stream-status');
+    
+    if (streamPaused) {
+        icon.className = 'fas fa-play me-1';
+        text.textContent = 'Resume';
+        status.textContent = 'Paused';
+        document.querySelector('.live-dot').style.animationPlayState = 'paused';
+    } else {
+        icon.className = 'fas fa-pause me-1';
+        text.textContent = 'Pause';
+        status.textContent = 'Live';
+        document.querySelector('.live-dot').style.animationPlayState = 'running';
+        fetchEvents(); // Fetch immediately on resume
+    }
+}
+
+function setFilter(type, btn) {
+    currentFilter = type;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('active', 'btn-primary');
+        b.classList.add('btn-outline-primary');
+    });
+    btn.classList.remove('btn-outline-primary');
+    btn.classList.add('active', 'btn-primary');
+    refreshFeed();
+}
+
+function applySearch() {
+    searchQuery = document.getElementById('search-filter').value;
+    refreshFeed();
+}
+
+// ── CSV Export ──
+function exportCSV() {
+    if (allEvents.length === 0) {
+        showToast('No events to export', 'warning');
+        return;
+    }
+
+    const headers = ['Time', 'Type', 'Sender', 'Receiver', 'Amount', 'TX ID', 'Round', 'App ID', 'Asset ID', 'Note'];
+    const rows = allEvents.map(ev => [
+        ev.time || '',
+        ev.type || '',
+        ev.sender || '',
+        ev.receiver || '',
+        ev.amount || ev.asset_amount || '',
+        ev.tx_id || '',
+        ev.round || '',
+        ev.app_id || '',
+        ev.asset_id || '',
+        (ev.note || '').replace(/,/g, ';').replace(/\n/g, ' ')
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chain_events_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${allEvents.length} events to CSV`, 'success');
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+    fetchEvents();
+    pollInterval = setInterval(fetchEvents, POLL_INTERVAL_MS);
+});
+</script>
+{% endblock %}

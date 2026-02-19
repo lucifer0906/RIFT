@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CampusTrust{% endblock %}</title>
+    <title>{% block title %}CampaFi{% endblock %}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,8 +23,7 @@
     <!-- QRCode JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- Algorand SDK & Pera Connect -->
-    <script src="https://cdn.jsdelivr.net/npm/algosdk@2.4.0/dist/browser/algosdk.min.js"></script>
+    <!-- Algorand SDK & Pera Connect (algosdk bundled with Pera) -->
     <script src="{{ url_for('static', filename='js/perawallet-bundle.js') }}"></script>
 
     {% block extra_css %}{% endblock %}
@@ -36,9 +35,9 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top glass-nav">
         <div class="container">
             <a class="navbar-brand fw-bold"
-                href="{{ url_for('dashboard') if session.get('user_id') else url_for('login') }}">
+                href="{{ url_for('dashboard') if session.get('user_id') else url_for('wallet_login') }}">
                 <img src="https://cryptologos.cc/logos/algorand-algo-logo.png" alt="Algorand" height="30"
-                    class="me-2">CampusTrust
+                    class="me-2">CampaFi
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -56,6 +55,20 @@
                             <i class="fas fa-wallet me-1"></i>Wallet
                         </a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ('lockbox', 'receipts', 'chain_events') %}active{% endif %}"
+                            href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-cubes me-1"></i>Features
+                        </a>
+                        <ul class="dropdown-menu shadow border-0">
+                            <li><a class="dropdown-item" href="{{ url_for('lockbox') }}">
+                                <i class="fas fa-lock me-2 text-primary"></i>Lockbox Savings</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('receipts') }}">
+                                <i class="fas fa-shield-alt me-2 text-success"></i>Privacy Receipts</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('chain_events') }}">
+                                <i class="fas fa-broadcast-tower me-2 text-info"></i>Chain Visualiser</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link {% if 'logs' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('public_logs') }}">Network Activity</a>
@@ -66,7 +79,9 @@
                             <i class="fas fa-user-circle me-1"></i> Account
                         </a>
                         <ul class="dropdown-menu shadow border-0 text-start">
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i
+                            <li><span class="dropdown-item-text small text-muted" id="navbar-wallet-addr"></span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="walletLogout(); return false;"><i
                                         class="fas fa-sign-out-alt me-2 text-danger"></i>Logout</a></li>
                         </ul>
                     </li>
@@ -78,12 +93,12 @@
                         </button>
                     </li>
                     {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link btn btn-primary text-white px-4 ms-2 rounded-pill"
-                            href="{{ url_for('register') }}">Register</a>
+                    <li class="nav-item ms-2">
+                        <a class="btn btn-pera btn-sm rounded-pill px-4 fw-bold" href="{{ url_for('wallet_login') }}">
+                            <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera"
+                                style="width: 20px; height: 20px; margin-right: 8px;">
+                            Login with Wallet
+                        </a>
                     </li>
                     {% endif %}
                 </ul>
@@ -120,42 +135,6 @@
     <script src="{{ url_for('static', filename='js/wallet.js') }}"></script>
 
     {% block extra_js %}{% endblock %}
-    <!-- Chatbot Widget -->
-    <div id="chat-container" class="position-fixed bottom-0 end-0 p-4" style="z-index: 1050;">
-        <!-- Chat Button -->
-        <button id="chat-toggle" class="btn btn-primary rounded-circle shadow-lg p-3"
-            style="width: 60px; height: 60px;">
-            <i class="fas fa-robot fa-lg"></i>
-        </button>
-
-        <!-- Chat Window -->
-        <div id="chat-widget" class="card shadow-lg d-none mt-3"
-            style="width: 350px; height: 450px; position: absolute; bottom: 80px; right: 20px;">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <span class="fw-bold"><i class="fas fa-robot me-2"></i>CampusBot</span>
-                <button id="chat-close" class="btn btn-sm btn-link text-white"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="card-body overflow-auto" id="chat-messages" style="background: #f8f9fa;">
-                <div class="chat-message text-start mb-2">
-                    <div class="d-inline-block p-2 rounded bg-light text-dark border"
-                        style="border-radius: 15px 15px 15px 0;">
-                        Hi! I'm CampusBot. Ask me about your attendance, the DAO, or upcoming events!
-                    </div>
-                </div>
-            </div>
-            <div class="card-footer bg-white">
-                <div class="input-group">
-                    <input type="text" id="chat-input" class="form-control" placeholder="Ask a question..."
-                        aria-label="Ask a question">
-                    <button class="btn btn-primary" type="button" id="chat-send"><i
-                            class="fas fa-paper-plane"></i></button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Chatbot Logic -->
-    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 
 </html>

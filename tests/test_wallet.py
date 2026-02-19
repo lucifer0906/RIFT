@@ -1,5 +1,5 @@
 """
-Tests for CampusTrust Wallet features – v2.0 (client-side signing).
+Tests for CampaFi Wallet features – v2.0 (client-side signing).
 
 The new architecture uses JSON API endpoints that build unsigned
 transactions on the server; the client signs them via Pera Wallet.

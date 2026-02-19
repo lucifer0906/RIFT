@@ -1,5 +1,5 @@
 """
-CampusCoin – The CampusTrust Stablecoin ASA
+CampusCoin – The CampaFi Stablecoin ASA
 ============================================
 A standard Algorand Standard Asset (ASA) that serves as the campus reward
 and payment token.  Deploy this once to create the ASA on TestNet, then set
@@ -31,8 +31,8 @@ CAMPUS_COIN_NAME = "CampusCoin"
 CAMPUS_COIN_UNIT = "CCOIN"
 CAMPUS_COIN_DECIMALS = 6
 CAMPUS_COIN_TOTAL = 1_000_000_000  # 1 billion (before decimals factor)
-CAMPUS_COIN_URL = "https://campustrust.io/coin"
-CAMPUS_COIN_NOTE = b"CampusTrust CampusCoin ASA"
+CAMPUS_COIN_URL = "https://campafi.io/coin"
+CAMPUS_COIN_NOTE = b"CampaFi CampusCoin ASA"
 
 
 def build_campus_coin_create_txn(creator_address: str) -> dict:

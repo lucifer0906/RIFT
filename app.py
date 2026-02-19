@@ -5,6 +5,7 @@ import hashlib
 import datetime
 import time
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from utils.hash_utils import get_file_hash
 from algorand.store_hash import store_on_chain
 from utils.blockchain_utils import (
@@ -38,7 +39,16 @@ except Exception:
     print("Warning: Could not import Beaker contracts. Make sure beaker-pyteal is installed.")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super-secret-key-change-in-production')
+_secret_key = os.environ.get('FLASK_SECRET_KEY')
+if not _secret_key:
+    import warnings
+    warnings.warn(
+        "FLASK_SECRET_KEY is not set. Using an insecure default. "
+        "Set this environment variable before deploying to production.",
+        stacklevel=2,
+    )
+    _secret_key = 'super-secret-key-change-in-production'
+app.secret_key = _secret_key
 UPLOAD_FOLDER = 'uploads/certificates'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -284,7 +294,7 @@ def create_tables():
         pass  # Column already exists
     
     # Create default admin
-    admin_hash = hashlib.sha256('admin'.encode()).hexdigest()
+    admin_hash = generate_password_hash('admin')
     c.execute("INSERT OR IGNORE INTO users (student_id, name, password_hash, role) VALUES ('admin', 'Administrator', ?, 'admin')", (admin_hash,))
     
     conn.commit()
@@ -334,9 +344,7 @@ def register():
         student_id = request.form['student_id']
         name = request.form['name']
         password = request.form['password']
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        
-        # Auto-generate wallet for student
+        password_hash = generate_password_hash(password)
         wallet_address, wallet_mnemonic = generate_student_wallet()
         
         conn = get_db_connection()
@@ -356,16 +364,31 @@ def login():
     if request.method == 'POST':
         student_id = request.form['student_id']
         password = request.form['password']
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
         
         conn = get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE student_id = ? AND password_hash = ?',
-                            (student_id, password_hash)).fetchone()
-        conn.close()
-        
-        if user:
-            session['user_id'] = user['id']
-            return redirect(url_for('dashboard'))
+        try:
+            user = conn.execute('SELECT * FROM users WHERE student_id = ?',
+                                (student_id,)).fetchone()
+            
+            valid = False
+            if user:
+                stored_hash = user['password_hash']
+                # Try werkzeug hash first; fall back to legacy SHA-256 for migration
+                if check_password_hash(stored_hash, password):
+                    valid = True
+                elif hashlib.sha256(password.encode()).hexdigest() == stored_hash:
+                    # Legacy SHA-256 hash – upgrade on the fly
+                    new_hash = generate_password_hash(password)
+                    conn.execute('UPDATE users SET password_hash = ? WHERE id = ?',
+                                 (new_hash, user['id']))
+                    conn.commit()
+                    valid = True
+            
+            if valid:
+                session['user_id'] = user['id']
+                return redirect(url_for('dashboard'))
+        finally:
+            conn.close()
         flash('Invalid credentials')
     return render_template('login.html')
 
@@ -2223,10 +2246,6 @@ def chat_api():
     conn = get_db_connection()
     response_text = ""
     
-    # DEBUG LOGGING
-    print(f"Chat request received: {message}")
-    print(f"API Key present: {bool(GEMINI_API_KEY)}")
-    
     # 1. GATHER CONTEXT (Internal Data)
     context_data = ""
     
@@ -2493,4 +2512,5 @@ def campus_coin_info():
         return jsonify({'configured': False, 'error': str(e)})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode)

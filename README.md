@@ -1,4 +1,4 @@
-# CampaFi — Blockchain-Powered Campus Management System
+# CollegePay — Blockchain-Powered Campus Management System
 
 [![Algorand](https://img.shields.io/badge/Blockchain-Algorand-00D4AA?style=for-the-badge&logo=algorand)](https://www.algorand.com/)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -7,7 +7,7 @@
 [![Pera Wallet](https://img.shields.io/badge/Pera_Wallet-Client_Signing-FFDE59?style=for-the-badge)](https://perawallet.app/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-> A decentralized campus management platform with a wallet-first dashboard. Connect Pera Wallet to send/receive ALGO, view token holdings, track transactions, verify certificates, vote in elections, and collaborate in groups — all anchored on Algorand TestNet with zero server-side signing.
+> A decentralized campus management platform with a wallet-first dashboard. Connect Pera Wallet to send/receive ALGO, view token holdings, track transactions, and collaborate in groups — all anchored on Algorand TestNet with zero server-side signing.
 
 ---
 
@@ -38,25 +38,19 @@
 
 Traditional campus management systems suffer from:
 
-- **Certificate Fraud** — fake diplomas are trivially created and hard to verify
-- **Election Manipulation** — centralized voting lacks transparency and can be tampered with
 - **No Student Wallet** — no unified way to send/receive campus payments
 - **Trust Deficit** — no immutable proof of achievements or participation
 - **Collaboration Opacity** — group work lacks verifiable tracking
 
 ### Our Solution
 
-CampaFi is built around a **wallet-first** design using Algorand blockchain:
+CollegePay is built around a **wallet-first** design using Algorand blockchain:
 
 | Capability | How It Works |
 |---|---|
 | **Campus Wallet** | Connect Pera Wallet → live ALGO balance, ASA tokens, QR receive, quick send |
-| **Certificate NFTs** | Upload cert → SHA-256 hash → stored on-chain → QR verification |
-| **Blockchain Elections** | Votes recorded as Algorand transactions → tamper-proof results |
 | **Group Collaboration** | Tasks & milestones logged on-chain → verifiable contributions |
 | **CampusCoin (CCOIN)** | Custom ASA token for campus rewards & payments |
-| **AI Chatbot** | Gemini-powered CampusBot with attendance analytics |
-| **Face ID Attendance** | Biometric check-in with face-api.js ML models |
 
 ### Why Algorand?
 
@@ -70,12 +64,10 @@ CampaFi is built around a **wallet-first** design using Algorand blockchain:
 
 ### Real-World Use Cases
 
-1. **Universities** — Issue tamper-proof digital certificates
-2. **Student Organizations** — Conduct transparent elections
-3. **Recruiters** — Instantly verify candidate credentials
-4. **International Students** — Prove qualifications across borders
-5. **Campus Groups** — Track collaborative projects with blockchain-backed milestones
-6. **Token Economies** — Create loyalty tokens or campus currencies
+1. **Universities** — Manage campus payments and group collaboration on-chain
+2. **Student Organizations** — Track collaborative projects with blockchain-backed milestones
+3. **Campus Groups** — Track collaborative projects with blockchain-backed milestones
+4. **Token Economies** — Create loyalty tokens or campus currencies
 
 ---
 
@@ -92,7 +84,7 @@ graph TB
     end
 
     subgraph "Server - Flask"
-        E[app.py – Routes + API] --> F[SQLite – Users, Certs, Elections]
+        E[app.py – Routes + API] --> F[SQLite – Users, Groups]
         E --> G["/api/prepare_*" – Unsigned Tx Builders]
         E --> H["/api/submit_transaction" – Relay Signed Tx]
     end
@@ -124,8 +116,6 @@ All private key operations happen in the user's Pera Wallet. The server never to
 | Component | Storage | Reason |
 |---|---|---|
 | User credentials | Off-Chain (SQLite) | Privacy, fast auth |
-| Certificate hashes | On-Chain (Algorand) | Immutable proof, public verification |
-| Election votes | On-Chain (Algorand) | Transparency, tamper-proof |
 | Group milestones | On-Chain (Algorand) | Permanent achievement records |
 | Token metadata | On-Chain (ASA) | Decentralized asset management |
 | Smart contract state | On-Chain (App State) | Trustless execution |
@@ -170,37 +160,14 @@ The dashboard displays your wallet prominently at the top:
 - **Transaction History** — last 8 txns with type, amount, date, explorer links
 - Auto-toggles between "Connect Wallet" CTA and full wallet panel
 
-### 2. Certificate Verification System
-
-- Upload PDF/image → SHA-256 hash → stored on Algorand as note
-- QR code per certificate linking to Lora Explorer
-- Delete support via Beaker `certificate_store` contract
-- Public verification at `/verify` — upload file, hash compared on-chain
-- Cost: ~0.001 ALGO per certificate
-
-```python
-# Simplified flow
-file_hash = hashlib.sha256(file_content).hexdigest()
-note = f"CERT|user:{user_id}|hash:{file_hash}|timestamp:{timestamp}"
-tx = PaymentTxn(sender=wallet, receiver=wallet, amt=0, note=note.encode())
-tx_id = algod_client.send_transaction(signed_tx)
-```
-
-### 3. Decentralized Elections
-
-- Admin creates elections with candidates
-- Students vote once per election, recorded on-chain
-- Transparent tallying from blockchain data
-- Results verifiable by anyone via Indexer
-
-### 4. Group Collaboration & DAO
+### 2. Group Collaboration & DAO
 
 - Create/join project groups, assign tasks/milestones
 - Task completions logged on-chain as immutable records
 - DAO treasury per group (Beaker `campus_dao` contract)
 - Full proposal lifecycle: create → vote → approve → execute (on-chain disbursement)
 
-### 5. Advanced Wallet Features (`/wallet/features`)
+### 3. Advanced Wallet Features (`/wallet/features`)
 
 Four-tab interface:
 
@@ -209,32 +176,12 @@ Four-tab interface:
 - **Mint NFT** — unique achievement badges with IPFS URLs
 - **Smart Contract** — deploy & interact with bank contracts
 
-### 6. CampusCoin (CCOIN)
+### 4. CampusCoin (CCOIN)
 
 - Custom Algorand Standard Asset: `CampusCoin` / `CAMPUS` / 6 decimals
 - Deploy via `/api/prepare_campus_coin_deploy` + Pera signing
 - Used for campus rewards, attendance incentives, group payments
 - State persisted in `system_state.json`
-
-### 7. Attendance with Face ID
-
-- Instructor creates session → students check in via webcam
-- Face recognition using face-api.js ML models (68-point landmarks)
-- Attendance percentage analytics per course
-- On-chain attendance records with blockchain-backed timestamps
-
-### 8. Feedback Collection
-
-- Create anonymous/named feedback forms with custom questions
-- Submit responses with blockchain-anchored timestamps
-- Analytics dashboard with response visualizations
-
-### 9. AI Chatbot (CampusBot)
-
-- Gemini 2.0 Flash powered with retries across multiple models
-- Queries user's real attendance data, groups, DAO info
-- Exponential backoff on rate limits (tries `gemini-2.0-flash-lite` → `gemini-1.5-flash` → `gemini-2.0-flash`)
-- Context-aware: injects per-course attendance breakdown into system prompt
 
 ---
 
@@ -248,7 +195,7 @@ Four-tab interface:
 | **py-algorand-sdk 2.0+** | Build unsigned transactions server-side |
 | **algosdk.js 2.4.0 (CDN)** | Decode transactions client-side |
 | **Pera Wallet Connect 1.5+** | Client-side transaction signing |
-| **Beaker (PyTeal)** | Smart contracts: campus_bank, campus_dao, certificate_store |
+| **Beaker (PyTeal)** | Smart contracts: campus_bank, campus_dao |
 | **AlgoNode** | Free RPC (algod + indexer) — no API key needed |
 
 ### Backend
@@ -256,10 +203,9 @@ Four-tab interface:
 | Technology | Purpose |
 |---|---|
 | **Flask 2.3+** | Web framework & REST API |
-| **SQLite** | User data, certificates, elections, groups |
+| **SQLite** | User data, groups |
 | **Gunicorn** | Production WSGI server |
 | **python-dotenv** | Environment variable management |
-| **google-generativeai** | Gemini AI for chatbot |
 
 ### Frontend
 
@@ -268,22 +214,20 @@ Four-tab interface:
 | **Bootstrap 5.3** | Responsive UI framework |
 | **wallet.js** | Wallet core: balance, history, QR, send, toasts |
 | **Pera Wallet bundle** | Webpack-compiled `@perawallet/connect` |
-| **qrcodejs** | QR code generation for addresses & certificates |
+| **qrcodejs** | QR code generation for addresses |
 | **Font Awesome 6** | Icons |
 | **Jinja2** | Server-side templating |
-| **face-api.js** | Face recognition ML models |
 
 ---
 
 ## 📂 Project Structure
 
 ```
-CampaFi-blockchain/
+CollegePay-blockchain/
 │
 ├── contracts/                     # AlgoKit / Beaker smart contracts
 │   ├── campus_bank.py             # Deposit/withdraw ALGO (Beaker Application)
 │   ├── campus_dao.py              # DAO treasury + disburse (Beaker Application)
-│   ├── certificate_store.py       # Certificate hash box storage (Beaker Application)
 │   ├── campus_coin.py             # CampusCoin ASA deployment helper
 │   ├── deploy.py                  # AlgoKit CLI deploy script (--compile / --deploy)
 │   └── __init__.py
@@ -292,33 +236,24 @@ CampaFi-blockchain/
 │   ├── connect.py                 # get_client(), get_indexer(), get_suggested_params()
 │   ├── store_hash.py              # build_note_txn(), submit_signed_txn()
 │   ├── advanced_features.py       # Unsigned tx builders + submit helpers
-│   ├── deploy_certificate.py      # Certificate contract deployment
 │   ├── update_contract.py         # Contract update utility
 │   └── contracts/                 # Original PyTeal source contracts
 │       ├── simple_bank.py         # PyTeal bank contract
 │       ├── simple_dao.py          # PyTeal DAO contract
-│       ├── certificate_contract.py# PyTeal certificate contract
 │       └── debug_contract.py      # Debug contract utility
 │
 ├── utils/                         # Server-side helpers
 │   ├── hash_utils.py              # SHA-256 file hashing
-│   ├── blockchain_utils.py        # Certificate store/verify/delete (unsigned txn builders)
+│   ├── blockchain_utils.py        # Blockchain utility helpers (unsigned txn builders)
 │   ├── rewards.py                 # CampusCoin reward system (unsigned txn builders)
 │   └── auth_utils.py              # Authentication helpers
 │
 ├── templates/                     # Jinja2 HTML templates
-│   ├── base.html                  # Layout: navbar, CDN scripts, chatbot widget
+│   ├── base.html                  # Layout: navbar, CDN scripts
 │   ├── dashboard.html             # Wallet-first dashboard + campus feature tabs
 │   ├── wallet_features.html       # Advanced: Send ALGO, Create ASA, Mint NFT, Contracts
-│   ├── upload_cert.html           # Certificate upload form
-│   ├── verify_cert.html           # Public certificate verification
-│   ├── election.html              # Election listing & voting
-│   ├── create_election.html       # Election creation (admin)
-│   ├── attendance_*.html          # Sessions, reports, Face ID check-in
-│   ├── feedback_*.html            # Forms, results, analytics
 │   ├── group_*.html               # Create, detail, discover, admin
 │   ├── login.html / register.html # Authentication pages
-│   ├── setup_face.html            # Face ID registration
 │   └── public_logs.html           # On-chain transaction browser
 │
 ├── static/
@@ -326,9 +261,7 @@ CampaFi-blockchain/
 │   ├── js/
 │   │   ├── wallet.js              # Wallet core v2.0 (connect, balance, history, QR, send)
 │   │   ├── perawallet-bundle.js   # Webpack-compiled Pera SDK
-│   │   ├── chat.js                # Gemini AI chatbot client
 │   │   └── script.js              # Legacy utilities
-│   └── models/                    # face-api.js ML models for Face ID
 │
 ├── tests/
 │   ├── test_fixes.py              # Core feature tests (15 tests)
@@ -358,8 +291,8 @@ CampaFi-blockchain/
 ### Step 1: Clone & Install
 
 ```bash
-git clone https://github.com/Helly121/CampaFi-blockchain.git
-cd CampaFi-blockchain
+git clone https://github.com/Helly121/CollegePay-blockchain.git
+cd CollegePay-blockchain
 
 # Python dependencies
 pip install -r requirements.txt
@@ -385,14 +318,15 @@ FLASK_SECRET_KEY=your-random-secret-key
 ALGOD_ADDRESS=https://testnet-api.algonode.cloud
 INDEXER_ADDRESS=https://testnet-idx.algonode.cloud
 
-# Certificate Store App ID
-CERT_APP_ID=755556381
+
+# CampusBank App ID
+BANK_APP_ID=755801824
+
+# TestNet Explorer
+# https://testnet.explorer.perawallet.app/application/755801824/
 
 # CampusCoin ASA ID (set after deploying via wallet)
 # CAMPUS_COIN_ID=
-
-# Optional: Gemini AI chatbot
-# GEMINI_API_KEY=your-key
 ```
 
 > ⚠️ **No `ALGO_MNEMONIC` needed!** All transaction signing happens in Pera Wallet on the client side.
@@ -400,7 +334,7 @@ CERT_APP_ID=755556381
 ### Step 3: Fund Your Pera Wallet
 
 1. Open Pera Wallet → Settings → Developer → Switch to **TestNet**
-2. Visit [Algorand TestNet Dispenser](https://dispenser.testnet.aws.algorand.com/)
+2. Visit [Algorand TestNet Dispenser](https://lora.algokit.io/testnet/fund)
 3. Paste your address → receive free TestNet ALGO
 
 ### Step 4: Run
@@ -461,7 +395,6 @@ All return `{unsigned_txn: base64, ...metadata}`. Sign with Pera, submit via `/a
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/campus_coin_info` | GET | CampusCoin ASA details |
-| `/api/chat` | POST | AI chatbot (Gemini) |
 
 ### Example: Send ALGO from JavaScript
 
@@ -506,13 +439,6 @@ console.log("Transaction:", txId);
 - Inner transactions for automated payments
 - Tracks `total_disbursements` in global state
 
-### CertificateStore (`contracts/certificate_store.py`)
-
-- `add_certificate(hash, owner)` — store cert hash in Algorand box storage (AVM v8+)
-- `delete_certificate(hash)` — remove cert (owner only)
-- `verify_certificate(hash)` — read-only on-chain verification
-- O(1) lookup via box storage
-
 ### Security Features
 
 - Access control: only creator can withdraw/disburse
@@ -526,8 +452,6 @@ console.log("Transaction:", txId);
 
 | Operation | Cost (ALGO) | ~USD* |
 |---|---|---|
-| Certificate upload (note txn) | 0.001 | $0.0003 |
-| Election vote | 0.001 | $0.0003 |
 | ALGO payment | 0.001 | $0.0003 |
 | ASA creation | 0.1 | $0.03 |
 | NFT mint | 0.1 | $0.03 |
@@ -557,8 +481,7 @@ All blockchain calls are mocked — no TestNet ALGO required for testing.
 | Module | Tests | Coverage |
 |---|---|---|
 | Wallet Features | 7 tests | Payment, ASA, NFT, Contracts |
-| Core Fixes | 15 tests | Auth, Elections, Groups |
-| Analytics | Varies | Attendance, feedback analytics |
+| Core Fixes | 15 tests | Auth, Groups |
 
 ---
 
@@ -594,7 +517,7 @@ npm run dev       # watch mode for development
 2. Fund wallet with real ALGO
 3. Redeploy contracts via `contracts/deploy.py --deploy`
 4. Redeploy CampusCoin ASA
-5. Update `CERT_APP_ID` and `CAMPUS_COIN_ID` in `.env`
+5. Update `CAMPUS_COIN_ID` in `.env`
 
 ---
 
@@ -608,7 +531,6 @@ npm run dev       # watch mode for development
 | **CSRF** | Flask session with secret key |
 | **Reentrancy** | Algorand atomic transactions prevent by design |
 | **Mnemonic exposure** | No `ALGO_MNEMONIC` needed; optional `DEPLOYER_MNEMONIC` for CLI only |
-| **Rate limiting** | Gemini API retries with exponential backoff |
 | **Integer overflow** | PyTeal safe math operations |
 
 ---
@@ -616,13 +538,21 @@ npm run dev       # watch mode for development
 ## 📊 Future Roadmap
 
 - [ ] Multi-signature wallets for critical transactions
-- [ ] Delegated voting in elections
 - [ ] IPFS integration for large file storage
 - [ ] React Native mobile app with WalletConnect
 - [ ] MainNet production deployment
 - [ ] Algorand State Proofs for cross-chain verification
 - [ ] Redis caching for frequently accessed data
 - [ ] Token-based governance (DAO proposals)
+
+---
+
+## 👥 Team — Aura Farmers
+
+| Name | Role |
+|---|---|
+| **Chetan Shelar** (Team Leader) | Frontend & Blockchain Developer |
+| **Gaurav Tiple** | Backend & DevOps Developer |
 
 ---
 
@@ -648,7 +578,6 @@ MIT License — see [LICENSE](LICENSE).
 - **Pera Wallet** — client-side signing SDK
 - **AlgoKit / Beaker** — smart contract framework
 - **Flask Community** — web framework & documentation
-- **Google Gemini** — AI chatbot engine
 
 ---
 

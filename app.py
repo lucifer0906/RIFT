@@ -33,8 +33,12 @@ from dotenv import load_dotenv
 load_dotenv() # Load environment variables from .env file
 
 try:
-    from contracts.campus_bank import app as bank_beaker_app
-    from contracts.campus_dao import app as dao_beaker_app
+    if os.environ.get('VERCEL'):
+        bank_beaker_app = None
+        dao_beaker_app = None
+    else:
+        from contracts.campus_bank import app as bank_beaker_app
+        from contracts.campus_dao import app as dao_beaker_app
 except Exception:
     bank_beaker_app = None
     dao_beaker_app = None
@@ -46,8 +50,19 @@ UPLOAD_FOLDER = 'uploads/certificates'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def get_db_connection():
-    db_path = os.path.join(app.root_path, 'database', 'campus.db')
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    if os.environ.get('VERCEL'):
+        # In Vercel, we can only write to /tmp
+        db_path = '/tmp/campus.db'
+        # Copy semantic DB if it doesn't exist in tmp
+        if not os.path.exists(db_path):
+             import shutil
+             original_db = os.path.join(app.root_path, 'database', 'campus.db')
+             if os.path.exists(original_db):
+                 shutil.copy2(original_db, db_path)
+    else:
+        db_path = os.path.join(app.root_path, 'database', 'campus.db')
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
     conn = sqlite3.connect(db_path, timeout=30.0)
     conn.row_factory = sqlite3.Row
     return conn

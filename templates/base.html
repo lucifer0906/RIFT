@@ -1,18 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CampaFi{% endblock %}</title>
+    <title>{% block title %}CollegePay{% endblock %}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
 
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Algorand & Pera Wallet -->
+    <!-- Algorand & Pera Wallet -->
+    <script src="https://unpkg.com/algosdk@2.9.0/dist/browser/algosdk.min.js"></script>
+    <script src="https://unpkg.com/@perawallet/connect@1.3.5/dist/browser/pera-connect.js"></script>
+
+    <!-- Tailwind CSS (CDN Play) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Geist', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        /* ── Layered surfaces ── */
+                        surface: {
+                            DEFAULT: '#F8FAFC',
+                            dark: '#0F1115',
+                        },
+                        's1': {
+                            DEFAULT: '#FFFFFF',
+                            dark: '#151821',
+                        },
+                        's2': {
+                            DEFAULT: '#F1F5F9',
+                            dark: '#1C1F2B',
+                        },
+                        /* ── Accent / Primary ── */
+                        accent: {
+                            DEFAULT: '#7C3AED',
+                            hover: '#8B5CF6',
+                            muted: 'rgba(124,58,237,0.12)',
+                            light: '#A78BFA',
+                        },
+                        /* ── Text tiers ── */
+                        'tx': {
+                            high: '#0F172A',
+                            med: '#475569',
+                            low: '#94A3B8',
+                            'high-d': '#F1F5F9',
+                            'med-d': '#C9CED6',
+                            'low-d': '#8A9099',
+                        },
+                        /* ── Borders ── */
+                        brd: {
+                            DEFAULT: '#E2E8F0',
+                            dark: '#2B2F3A',
+                        },
+                        /* ── Semantic ── */
+                        success: { DEFAULT: '#10B981', light: '#34D399' },
+                        warning: { DEFAULT: '#F59E0B', light: '#FBBF24' },
+                        danger: { DEFAULT: '#EF4444', light: '#F87171' },
+                        info: { DEFAULT: '#3B82F6', light: '#60A5FA' },
+                        /* ── Legacy compat ── */
+                        card: { DEFAULT: '#FFFFFF', dark: '#151821' },
+                        'card-hover': { DEFAULT: '#F1F5F9', dark: '#1E2230' },
+                        panel: { DEFAULT: '#F1F5F9', dark: '#1C1F2B' },
+                        border: { DEFAULT: '#E2E8F0', dark: 'rgba(255,255,255,0.08)' },
+                        muted: { DEFAULT: '#64748B', dark: '#8A9099' },
+                    },
+                    fontSize: {
+                        'page': ['1.875rem', { lineHeight: '2.25rem', fontWeight: '600' }],
+                        'section': ['1.375rem', { lineHeight: '1.75rem', fontWeight: '600' }],
+                        'card-t': ['1.125rem', { lineHeight: '1.5rem', fontWeight: '500' }],
+                        'body': ['1rem', { lineHeight: '1.5rem', fontWeight: '400' }],
+                        'sm': ['0.875rem', { lineHeight: '1.25rem', fontWeight: '400' }],
+                        'micro': ['0.75rem', { lineHeight: '1rem', fontWeight: '500' }],
+                    },
+                    spacing: {
+                        '4.5': '1.125rem',
+                        '13': '3.25rem',
+                        '15': '3.75rem',
+                        '18': '4.5rem',
+                    },
+                    borderRadius: {
+                        'xl': '12px',
+                        '2xl': '16px',
+                        '3xl': '24px',
+                    },
+                    boxShadow: {
+                        'card': '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+                        'card-hover': '0 10px 25px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04)',
+                        'card-dark': '0 4px 20px rgba(0,0,0,0.25)',
+                        'card-dark-hover': '0 8px 30px rgba(0,0,0,0.4)',
+                        'btn': '0 4px 14px rgba(124,58,237,0.25)',
+                        'btn-hover': '0 6px 20px rgba(124,58,237,0.35)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.4s ease-out',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                        'fade-in-slow': 'fadeIn 0.6s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(8px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(16px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -23,102 +130,144 @@
     <!-- QRCode JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-    <!-- Algorand SDK & Pera Connect (algosdk bundled with Pera) -->
+    <!-- Algorand SDK & Pera Connect -->
     <script src="{{ url_for('static', filename='js/perawallet-bundle.js') }}"></script>
 
     {% block extra_css %}{% endblock %}
 </head>
 
-<body>
+<body
+    class="font-sans antialiased min-h-screen bg-surface dark:bg-surface-dark text-slate-800 dark:text-gray-100 transition-colors duration-300">
+
+    <!-- Skip to content (accessibility) -->
+    <a href="#main-content"
+        class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded-lg focus:text-sm focus:font-bold">Skip
+        to main content</a>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top glass-nav">
-        <div class="container">
-            <a class="navbar-brand fw-bold"
-                href="{{ url_for('dashboard') if session.get('user_id') else url_for('wallet_login') }}">
-                <img src="https://cryptologos.cc/logos/algorand-algo-logo.png" alt="Algorand" height="30"
-                    class="me-2">CampaFi
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
+    <nav role="navigation" aria-label="Main navigation"
+        class="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/80 dark:bg-[#0F1115]/80 border-b border-slate-200/50 dark:border-[#2B2F3A]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20"> <!-- Increased height -->
+                <!-- Brand -->
+                <a href="{{ url_for('dashboard') if session.get('user_id') else url_for('wallet_login') }}"
+                    class="flex items-center gap-2 text-lg font-bold text-accent hover:opacity-90 transition-opacity">
+                    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="CollegePay"
+                        class="h-8 w-8 text-accent">
+                    <span>CollegePay</span>
+                </a>
+
+                <!-- Desktop Nav -->
+                <div class="hidden md:flex items-center gap-8"> <!-- Increased gap-1 to gap-8 -->
                     {% if session.get('user_id') %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
-                            href="{{ url_for('dashboard') }}">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'wallet_features' %}active{% endif %}"
-                            href="{{ url_for('wallet_features') }}">
-                            <i class="fas fa-wallet me-1"></i>Wallet
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint in ('lockbox', 'receipts', 'chain_events') %}active{% endif %}"
-                            href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-cubes me-1"></i>Features
-                        </a>
-                        <ul class="dropdown-menu shadow border-0">
-                            <li><a class="dropdown-item" href="{{ url_for('lockbox') }}">
-                                <i class="fas fa-lock me-2 text-primary"></i>Lockbox Savings</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('receipts') }}">
-                                <i class="fas fa-shield-alt me-2 text-success"></i>Privacy Receipts</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('chain_events') }}">
-                                <i class="fas fa-broadcast-tower me-2 text-info"></i>Chain Visualiser</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'logs' in request.endpoint %}active{% endif %}"
-                            href="{{ url_for('public_logs') }}">Network Activity</a>
-                    </li>
-                    <li class="nav-item dropdown ms-lg-3">
-                        <a class="nav-link dropdown-toggle btn btn-sm btn-outline-light px-3 rounded-pill" href="#"
-                            role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> Account
-                        </a>
-                        <ul class="dropdown-menu shadow border-0 text-start">
-                            <li><span class="dropdown-item-text small text-muted" id="navbar-wallet-addr"></span></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" onclick="walletLogout(); return false;"><i
-                                        class="fas fa-sign-out-alt me-2 text-danger"></i>Logout</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item ms-2">
-                        <button class="btn btn-pera btn-sm rounded-pill px-4 fw-bold" id="connect-wallet-btn">
-                            <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera"
-                                style="width: 20px; height: 20px; margin-right: 8px;">
-                            Connect Wallet
+                    <a href="{{ url_for('dashboard') }}"
+                        class="nav-link-item {% if request.endpoint == 'dashboard' %}nav-link-active{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="{{ url_for('wallet_features') }}"
+                        class="nav-link-item {% if request.endpoint == 'wallet_features' %}nav-link-active{% endif %}">
+                        <i class="fas fa-wallet mr-1 text-xs"></i>Wallet
+                    </a>
+
+
+
+                    <a href="{{ url_for('public_logs') }}"
+                        class="nav-link-item {% if 'logs' in request.endpoint %}nav-link-active{% endif %}">
+                        Network Activity
+                    </a>
+
+                    <!-- Account Dropdown -->
+                    <div class="relative ml-2" data-dropdown>
+                        <button
+                            class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full border border-slate-300 dark:border-[#2B2F3A] text-slate-600 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
+                            data-dropdown-toggle>
+                            <i class="fas fa-user-circle"></i>Account
+                            <i class="fas fa-chevron-down text-[10px] opacity-50"></i>
                         </button>
-                    </li>
-                    {% else %}
-                    <li class="nav-item ms-2">
-                        <a class="btn btn-pera btn-sm rounded-pill px-4 fw-bold" href="{{ url_for('wallet_login') }}">
-                            <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera"
-                                style="width: 20px; height: 20px; margin-right: 8px;">
-                            Login with Wallet
-                        </a>
-                    </li>
+                        <div class="dropdown-menu hidden" data-dropdown-content>
+                            <span class="block px-4 py-2 text-xs text-muted dark:text-muted-dark"
+                                id="navbar-wallet-addr"></span>
+                            <div class="border-t border-slate-200 dark:border-[#2B2F3A] my-1"></div>
+                            <a href="#" onclick="walletLogout(); return false;" class="dropdown-item text-red-400">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                            </a>
+                        </div>
+                    </div>
                     {% endif %}
-                </ul>
+
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle"
+                        class="ml-2 p-2 rounded-lg text-slate-500 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-all"
+                        title="Toggle theme">
+                        <i class="fas fa-sun text-sm dark:hidden"></i>
+                        <i class="fas fa-moon text-sm hidden dark:inline"></i>
+                    </button>
+
+                    <!-- Connect Wallet Button -->
+                    {% if session.get('user_id') %}
+                    <button
+                        class="ml-2 btn-pera rounded-full px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all"
+                        id="connect-wallet-btn">
+                        <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera" class="w-5 h-5">
+                        Connect Wallet
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('wallet_login') }}"
+                        class="ml-2 btn-pera rounded-full px-4 py-2 text-sm font-bold inline-flex items-center gap-2 transition-all no-underline">
+                        <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera" class="w-5 h-5">
+                        Login with Wallet
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn" aria-label="Toggle mobile menu" aria-expanded="false"
+                    aria-controls="mobile-menu"
+                    class="md:hidden p-2 rounded-lg text-slate-500 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-white/5">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-slate-200 dark:border-[#2B2F3A]">
+            <div class="px-4 py-3 space-y-1">
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('dashboard') }}" class="mobile-nav-link">Dashboard</a>
+                <a href="{{ url_for('wallet_features') }}" class="mobile-nav-link"><i
+                        class="fas fa-wallet mr-2"></i>Wallet</a>
+
+                <a href="{{ url_for('public_logs') }}" class="mobile-nav-link">Network Activity</a>
+                <div class="border-t border-slate-200 dark:border-[#2B2F3A] my-2"></div>
+                <a href="#" onclick="walletLogout(); return false;" class="mobile-nav-link text-red-400">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                </a>
+                {% else %}
+                <a href="{{ url_for('wallet_login') }}" class="mobile-nav-link"><i class="fas fa-wallet mr-2"></i>Login
+                    with Wallet</a>
+                {% endif %}
             </div>
         </div>
     </nav>
 
     <!-- Main Content -->
-    <main class="container py-5 mt-5">
+    <main id="main-content" role="main" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-12">
         {% with messages = get_flashed_messages() %}
         {% if messages %}
-        <div class="row justify-content-center mb-4">
-            <div class="col-md-8">
-                {% for message in messages %}
-                <div class="alert alert-info alert-dismissible fade show shadow-sm border-0" role="alert">
-                    <i class="fas fa-info-circle me-2"></i> {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                {% endfor %}
+        <div class="max-w-2xl mx-auto mb-6 animate-fade-in">
+            {% for message in messages %}
+            <div class="flash-alert">
+                <i class="fas fa-info-circle mr-2 text-accent"></i>
+                <span class="flex-1">{{ message }}</span>
+                <button onclick="this.parentElement.remove()"
+                    class="ml-3 text-slate-400 hover:text-slate-600 dark:hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
+            {% endfor %}
         </div>
         {% endif %}
         {% endwith %}
@@ -126,13 +275,139 @@
         {% block content %}{% endblock %}
     </main>
 
-
-
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-[#2B2F3A] bg-white dark:bg-[#0F1115] mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="CollegePay"
+                        class="w-5 h-5 opacity-80">
+                    <span class="text-sm font-semibold text-slate-600 dark:text-gray-300">CollegePay &copy; 2025</span>
+                </div>
+                <div class="flex items-center gap-6">
+                    <a href="#"
+                        class="text-xs text-slate-500 dark:text-gray-400 hover:text-accent transition-colors">Privacy</a>
+                    <a href="#"
+                        class="text-xs text-slate-500 dark:text-gray-400 hover:text-accent transition-colors">Terms</a>
+                    <a href="https://github.com/algorand-devarel/rift-hackathon" target="_blank"
+                        class="text-xs text-slate-500 dark:text-gray-400 hover:text-accent transition-colors">
+                        <i class="fab fa-github mr-1"></i>GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <!-- Wallet Logic -->
     <script src="{{ url_for('static', filename='js/wallet.js') }}"></script>
+
+    <!-- Theme & UI Scripts -->
+    <script>
+            // ── Theme Toggle ──
+            (function () {
+                const html = document.documentElement;
+                const stored = localStorage.getItem('collegepay-theme');
+                if (stored === 'light') {
+                    html.classList.remove('dark');
+                } else {
+                    html.classList.add('dark');
+                }
+
+                const toggleBtn = document.getElementById('theme-toggle');
+                if (toggleBtn) {
+                    toggleBtn.addEventListener('click', () => {
+                        html.classList.toggle('dark');
+                        localStorage.setItem('collegepay-theme', html.classList.contains('dark') ? 'dark' : 'light');
+                    });
+                }
+            })();
+
+        // ── Mobile Menu ──
+        (function () {
+            const btn = document.getElementById('mobile-menu-btn');
+            const menu = document.getElementById('mobile-menu');
+            if (btn && menu) {
+                btn.addEventListener('click', () => {
+                    const isOpen = !menu.classList.contains('hidden');
+                    menu.classList.toggle('hidden');
+                    btn.setAttribute('aria-expanded', !isOpen);
+                });
+            }
+        })();
+
+        // ── Dropdown Menus ──
+        (function () {
+            document.querySelectorAll('[data-dropdown]').forEach(dropdown => {
+                const toggle = dropdown.querySelector('[data-dropdown-toggle]');
+                const content = dropdown.querySelector('[data-dropdown-content]');
+                if (!toggle || !content) return;
+
+                toggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('[data-dropdown-content]').forEach(d => {
+                        if (d !== content) d.classList.add('hidden');
+                    });
+                    content.classList.toggle('hidden');
+                });
+            });
+
+            document.addEventListener('click', () => {
+                document.querySelectorAll('[data-dropdown-content]').forEach(d => d.classList.add('hidden'));
+            });
+        })();
+
+        // ── Copy to Clipboard Utility ──
+        function copyToClipboard(text, label) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`✅ ${label || 'Copied'} to clipboard!`, 'success');
+            }).catch(() => {
+                // Fallback for older browsers
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;opacity:0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                showToast(`✅ ${label || 'Copied'} to clipboard!`, 'success');
+            });
+        }
+
+        // ── Button Loading State ──
+        function setButtonLoading(btn, isLoading) {
+            if (typeof btn === 'string') btn = document.getElementById(btn);
+            if (!btn) return;
+            if (isLoading) {
+                btn.dataset.originalText = btn.innerHTML;
+                btn.classList.add('btn-loading');
+                btn.disabled = true;
+            } else {
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+                if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+            }
+        }
+
+        // ── Escape Key — close modals & dropdowns ──
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // Close dropdowns
+                document.querySelectorAll('[data-dropdown-content]').forEach(d => d.classList.add('hidden'));
+                // Close vanilla modals
+                document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => m.classList.add('hidden'));
+            }
+        });
+
+        // ── Auto-dismiss flash messages ──
+        document.querySelectorAll('.flash-alert').forEach(alert => {
+            setTimeout(() => {
+                alert.style.transition = 'opacity 0.3s, transform 0.3s';
+                alert.style.opacity = '0';
+                alert.style.transform = 'translateY(-8px)';
+                setTimeout(() => alert.remove(), 300);
+            }, 5000);
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

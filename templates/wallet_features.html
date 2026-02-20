@@ -1,584 +1,668 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Wallet Features - CampaFi{% endblock %}
+{% block title %}Student Wallet - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row fade-in">
-    <div class="col-12 mb-4">
-        <div class="hero-header text-center">
-            <h2 class="fw-bold display-5 mb-3"><i class="fas fa-wallet me-3 text-primary"></i>Campus Wallet & Hub</h2>
-            <p class="text-muted lead mb-0">Manage payments, assets, NFTs, and smart contracts directly on Algorand
-                Testnet.</p>
-        </div>
+<div class="animate-fade-in">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">CollegePay Wallet</h1>
+        <p class="text-slate-500 dark:text-gray-400">Manage your campus assets and payments</p>
     </div>
 
-    <div class="col-12">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-white border-0">
-                <ul class="nav nav-pills card-header-pills" id="wallet-tabs" role="tablist">
-                    <li class="nav-item">
-                        <a class="nav-link active" id="pay-tab" data-bs-toggle="pill" href="#pay" role="tab">
-                            <i class="fas fa-paper-plane me-2"></i>Send ALGO
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="asa-tab" data-bs-toggle="pill" href="#asa" role="tab">
-                            <i class="fas fa-coins me-2"></i>Create Token
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="nft-tab" data-bs-toggle="pill" href="#nft" role="tab">
-                            <i class="fas fa-image me-2"></i>Mint NFT
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="contract-tab" data-bs-toggle="pill" href="#contract" role="tab">
-                            <i class="fas fa-file-code me-2"></i>Smart Contract
-                        </a>
-                    </li>
-                </ul>
-            </div>
-            <div class="card-body p-4">
-                <div class="tab-content">
-                    <!-- Payment Tab -->
-                    <div class="tab-pane fade show active" id="pay" role="tabpanel">
-                        <div class="row justify-content-center">
-                            <div class="col-md-8">
-                                <h4 class="mb-4 fw-bold">Send Payment</h4>
-                                <form action="{{ url_for('wallet_pay') }}" method="POST" class="needs-validation">
-                                    <div class="mb-3">
-                                        <label class="form-label">Receiver Address</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0"><i
-                                                    class="fas fa-wallet text-muted"></i></span>
-                                            <input type="text" name="receiver" class="form-control border-start-0 ps-0"
-                                                placeholder="Algorand Address" required>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Amount (ALGO)</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light border-end-0"><i
-                                                    class="fas fa-coins text-muted"></i></span>
-                                            <input type="number" name="amount" class="form-control border-start-0 ps-0"
-                                                step="0.000001" placeholder="0.00" required>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Note <small
-                                                class="text-muted">(Optional)</small></label>
-                                        <input type="text" name="note" class="form-control"
-                                            placeholder="Transaction Note">
-                                    </div>
-                                    <button type="submit" id="pay-submit-btn"
-                                        class="btn btn-primary w-100 py-2 shadow-sm">
-                                        <i class="fas fa-paper-plane me-2"></i>Send ALGO
-                                    </button>
-                                </form>
-                            </div>
+    <!-- Bento Grid Layout -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+        <!-- Left Column: Send Payment (Medium Col Span 2, Full Height) -->
+        <div class="md:col-span-2">
+            <div class="glass-card h-full p-8 flex flex-col justify-center relative overflow-hidden min-h-[500px]">
+                <!-- Background Decoration -->
+                <div class="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
+                    <i class="fas fa-paper-plane text-9xl text-accent"></i>
+                </div>
+
+                <div class="relative z-10 max-w-2xl mx-auto w-full">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center text-accent">
+                            <i class="fas fa-paper-plane text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-2xl font-bold text-slate-800 dark:text-white">Send Payment</h4>
+                            <p class="text-slate-500 dark:text-gray-400 text-sm">Securely transfer ALGO to any address.
+                            </p>
                         </div>
                     </div>
 
-                    <script>
-                        document.addEventListener("DOMContentLoaded", function () {
-                            const payForm = document.querySelector('form[action="{{ url_for("wallet_pay") }}"]');
-                            if (payForm) {
-                                payForm.addEventListener("submit", async function (e) {
-                                    e.preventDefault();
-                                    const submitBtn = document.getElementById("pay-submit-btn");
-                                    const originalText = submitBtn.innerHTML;
-
-                                    // Check connection
-                                    if (!peraWallet.isConnected) {
-                                        alert("Please connect your Pera Wallet first!");
-                                        return;
-                                    }
-
-                                    submitBtn.disabled = true;
-                                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing...';
-
-                                    try {
-                                        // 1. Prepare
-                                        const formData = new FormData(payForm);
-                                        const data = {
-                                            sender: peraWallet.connector.accounts[0],
-                                            receiver: formData.get("receiver"),
-                                            amount: formData.get("amount"),
-                                            note: formData.get("note")
-                                        };
-
-                                        const prepRes = await fetch("/api/prepare_payment", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify(data)
-                                        });
-
-                                        const prepJson = await prepRes.json();
-                                        if (prepJson.error) throw new Error(prepJson.error);
-
-                                        // 2. Sign
-                                        // prepJson.txn_b64 is base64 encoded msgpack of the transaction object
-                                        // Pera Connect wants: [{txn: "base64encodedString", signers: [address]}]
-                                        // But we need to decode the msgpack to Uint8Array first? 
-                                        // Wait, perawallet.signTransaction takes array of {txn: SignedTransactionObject_OR_Base64?}
-                                        // It usually takes standard algosdk Transaction objects.
-
-                                        // Let's decode the base64 back to Uint8Array which is the msgpacked txn
-                                        const binaryString = atob(prepJson.txn_b64);
-                                        const len = binaryString.length;
-                                        const bytes = new Uint8Array(len);
-                                        for (let i = 0; i < len; i++) {
-                                            bytes[i] = binaryString.charCodeAt(i);
-                                        }
-
-                                        // Decode msgpack to get object? No, Pera Connect accepts the binary directly in a specific way?
-                                        // Actually, simpler: construct algosdk.Transaction from the props if possible, 
-                                        // OR use the msgpacked bytes.
-
-                                        // Standard Pera usage:
-                                        // const txGroups = [{txn: txn_obj, signers: [addr]}]
-                                        // peraWallet.signTransaction([txGroups])
-
-                                        // Logic: 
-                                        // Algosdk.decodeUnsignedTransaction(bytes) -> Transaction Object
-                                        const txn = algosdk.decodeUnsignedTransaction(bytes);
-
-                                        const singleTxnGroups = [{ txn: txn, signers: [peraWallet.connector.accounts[0]] }];
-                                        const signedTxns = await peraWallet.signTransaction([singleTxnGroups]);
-
-                                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
-
-                                        // 3. Submit
-                                        // signedTxns is array of Uint8Array (signed bytes)
-                                        // Convert to base64 to send to backend
-                                        const signedBytes = signedTxns[0];
-                                        let binary = '';
-                                        for (let i = 0; i < signedBytes.length; i++) {
-                                            binary += String.fromCharCode(signedBytes[i]);
-                                        }
-                                        const signedB64 = btoa(binary);
-
-                                        const subRes = await fetch("/api/submit_transaction", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ signed_txn: signedB64 })
-                                        });
-
-                                        const subJson = await subRes.json();
-                                        if (subJson.error) throw new Error(subJson.error);
-
-                                        alert("Transaction Sent! TXID: " + subJson.txId);
-                                        window.location.reload();
-
-                                    } catch (err) {
-                                        console.error(err);
-                                        alert("Error: " + err.message);
-                                        submitBtn.disabled = false;
-                                        submitBtn.innerHTML = originalText;
-                                    }
-                                });
-                            }
-                        });
-                    </script>
-
-                    <!-- Create Token Tab -->
-                    <div class="tab-pane fade" id="asa" role="tabpanel">
-                        <div class="row justify-content-center">
-                            <div class="col-md-8">
-                                <h4 class="mb-4 fw-bold">Create Fungible Token (ASA)</h4>
-                                <form action="{{ url_for('wallet_create_asset') }}" method="POST"
-                                    onsubmit="this.querySelector('button[type=submit]').classList.add('loading')">
-                                    <div class="row g-3">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Asset Name</label>
-                                            <input type="text" name="asset_name" class="form-control"
-                                                placeholder="e.g. CampusCoin" required>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Unit Name</label>
-                                            <input type="text" name="unit_name" class="form-control"
-                                                placeholder="e.g. CMP" maxlength="8" required>
-                                        </div>
-                                    </div>
-                                    <div class="row g-3">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Total Supply</label>
-                                            <input type="number" name="total" class="form-control" value="1000000"
-                                                required>
-                                            <div class="form-text">The total number of units to mint.</div>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Decimals</label>
-                                            <input type="number" name="decimals" class="form-control" value="0"
-                                                required>
-                                            <div class="form-text">0 = Indivisible, 6 = MicroAlgos standard.</div>
-                                        </div>
-                                    </div>
-                                    <div class="mb-4">
-                                        <label class="form-label">URL <small
-                                                class="text-muted">(Optional)</small></label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light"><i
-                                                    class="fas fa-link text-muted"></i></span>
-                                            <input type="url" name="url" class="form-control"
-                                                placeholder="https://example.com">
-                                        </div>
-                                    </div>
-                                    <button type="submit" id="asa-submit-btn"
-                                        class="btn btn-success w-100 py-2 shadow-sm">
-                                        <i class="fas fa-plus-circle me-2"></i>Create Asset
-                                    </button>
-                                </form>
+                    <form action="{{ url_for('wallet_pay') }}" method="POST" class="space-y-6">
+                        <div>
+                            <label class="input-label text-base mb-2">Receiver Address</label>
+                            <div class="relative">
+                                <span
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-400">
+                                    <i class="fas fa-wallet text-lg"></i>
+                                </span>
+                                <input type="text" name="receiver" class="input-field pl-12 py-4 text-base"
+                                    placeholder="Algorand Address" required>
                             </div>
                         </div>
-                    </div>
-
-                    <script>
-                        document.addEventListener("DOMContentLoaded", function () {
-                            // ASA Form Handler
-                            const asaForm = document.querySelector('form[action="{{ url_for("wallet_create_asset") }}"]');
-                            if (asaForm) {
-                                asaForm.addEventListener("submit", async function (e) {
-                                    e.preventDefault();
-                                    const submitBtn = document.getElementById("asa-submit-btn");
-                                    const originalText = submitBtn.innerHTML;
-
-                                    if (!peraWallet.isConnected) {
-                                        alert("Please connect your Pera Wallet first!");
-                                        return;
-                                    }
-
-                                    submitBtn.disabled = true;
-                                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing...';
-
-                                    try {
-                                        // 1. Prepare
-                                        const formData = new FormData(asaForm);
-                                        const data = {
-                                            sender: peraWallet.connector.accounts[0],
-                                            asset_name: formData.get("asset_name"),
-                                            unit_name: formData.get("unit_name"),
-                                            total: formData.get("total"),
-                                            decimals: formData.get("decimals"),
-                                            url: formData.get("url")
-                                        };
-
-                                        const prepRes = await fetch("/api/prepare_asset_creation", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify(data)
-                                        });
-
-                                        const prepJson = await prepRes.json();
-                                        if (prepJson.error) throw new Error(prepJson.error);
-
-                                        // 2. Sign
-                                        const binaryString = atob(prepJson.txn_b64);
-                                        const len = binaryString.length;
-                                        const bytes = new Uint8Array(len);
-                                        for (let i = 0; i < len; i++) {
-                                            bytes[i] = binaryString.charCodeAt(i);
-                                        }
-
-                                        const txn = algosdk.decodeUnsignedTransaction(bytes);
-                                        const singleTxnGroups = [{ txn: txn, signers: [peraWallet.connector.accounts[0]] }];
-                                        const signedTxns = await peraWallet.signTransaction([singleTxnGroups]);
-
-                                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Minting...';
-
-                                        // 3. Submit
-                                        const signedBytes = signedTxns[0];
-                                        let binary = '';
-                                        for (let i = 0; i < signedBytes.length; i++) {
-                                            binary += String.fromCharCode(signedBytes[i]);
-                                        }
-                                        const signedB64 = btoa(binary);
-
-                                        const subRes = await fetch("/api/submit_transaction", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ signed_txn: signedB64 })
-                                        });
-
-                                        const subJson = await subRes.json();
-                                        if (subJson.error) throw new Error(subJson.error);
-
-                                        alert("Asset Created! TXID: " + subJson.txId);
-                                        window.location.reload();
-
-                                    } catch (err) {
-                                        console.error(err);
-                                        alert("Error: " + err.message);
-                                        submitBtn.disabled = false;
-                                        submitBtn.innerHTML = originalText;
-                                    }
-                                });
-                            }
-                        });
-                    </script>
-
-                    <!-- Mint NFT Tab -->
-                    <div class="tab-pane fade" id="nft" role="tabpanel">
-                        <div class="row justify-content-center">
-                            <div class="col-md-8">
-                                <h4 class="mb-4 fw-bold">Mint NFT (ARC-3)</h4>
-                                <form action="{{ url_for('wallet_mint_nft') }}" method="POST"
-                                    onsubmit="this.querySelector('button[type=submit]').classList.add('loading')">
-                                    <div class="row g-3">
-                                        <div class="col-md-8 mb-3">
-                                            <label class="form-label">NFT Name</label>
-                                            <input type="text" name="asset_name" class="form-control"
-                                                placeholder="e.g. Hackathon Badge #1" required>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">Unit Name</label>
-                                            <input type="text" name="unit_name" class="form-control"
-                                                placeholder="e.g. BNFT" maxlength="8" required>
-                                        </div>
-                                    </div>
-                                    <div class="mb-4">
-                                        <label class="form-label">IPFS Metadata URL</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light"><i
-                                                    class="fas fa-cube text-muted"></i></span>
-                                            <input type="url" name="ipfs_url" class="form-control"
-                                                placeholder="ipfs://..." required>
-                                        </div>
-                                        <div class="form-text">
-                                            <i class="fas fa-info-circle me-1"></i>Ensure this points to a valid JSON
-                                            metadata file on IPFS.
-                                        </div>
-                                    </div>
-
-                                    <!-- Visual Progress Steps (Static for now) -->
-                                    <div class="d-flex justify-content-between mb-4 position-relative">
-                                        <div
-                                            class="position-absolute top-50 start-0 w-100 border-top translate-middle-y z-n1">
-                                        </div>
-                                        <div class="bg-white px-2 text-center text-success"><i
-                                                class="fas fa-check-circle"></i><br><small>Upload</small></div>
-                                        <div class="bg-white px-2 text-center text-primary"><i
-                                                class="fas fa-circle"></i><br><small>Mint</small></div>
-                                        <div class="bg-white px-2 text-center text-muted"><i
-                                                class="far fa-circle"></i><br><small>Verify</small></div>
-                                    </div>
-
-                                    <button type="submit" id="nft-submit-btn"
-                                        class="btn btn-info text-white w-100 py-2 shadow-sm">
-                                        <i class="fas fa-magic me-2"></i>Mint NFT
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <script>
-                        document.addEventListener("DOMContentLoaded", function () {
-                            // NFT Form Handler
-                            const nftForm = document.querySelector('form[action="{{ url_for("wallet_mint_nft") }}"]');
-                            if (nftForm) {
-                                nftForm.addEventListener("submit", async function (e) {
-                                    e.preventDefault();
-                                    const submitBtn = document.getElementById("nft-submit-btn");
-                                    const originalText = submitBtn.innerHTML;
-
-                                    if (!peraWallet.isConnected) {
-                                        alert("Please connect your Pera Wallet first!");
-                                        return;
-                                    }
-
-                                    submitBtn.disabled = true;
-                                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing...';
-
-                                    try {
-                                        // 1. Prepare
-                                        const formData = new FormData(nftForm);
-                                        const data = {
-                                            sender: peraWallet.connector.accounts[0],
-                                            asset_name: formData.get("asset_name"),
-                                            unit_name: formData.get("unit_name"),
-                                            ipfs_url: formData.get("ipfs_url")
-                                        };
-
-                                        const prepRes = await fetch("/api/prepare_nft_minting", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify(data)
-                                        });
-
-                                        const prepJson = await prepRes.json();
-                                        if (prepJson.error) throw new Error(prepJson.error);
-
-                                        // 2. Sign
-                                        const binaryString = atob(prepJson.txn_b64);
-                                        const len = binaryString.length;
-                                        const bytes = new Uint8Array(len);
-                                        for (let i = 0; i < len; i++) {
-                                            bytes[i] = binaryString.charCodeAt(i);
-                                        }
-
-                                        const txn = algosdk.decodeUnsignedTransaction(bytes);
-                                        const singleTxnGroups = [{ txn: txn, signers: [peraWallet.connector.accounts[0]] }];
-                                        const signedTxns = await peraWallet.signTransaction([singleTxnGroups]);
-
-                                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Minting...';
-
-                                        // 3. Submit
-                                        const signedBytes = signedTxns[0];
-                                        let binary = '';
-                                        for (let i = 0; i < signedBytes.length; i++) {
-                                            binary += String.fromCharCode(signedBytes[i]);
-                                        }
-                                        const signedB64 = btoa(binary);
-
-                                        const subRes = await fetch("/api/submit_transaction", {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ signed_txn: signedB64 })
-                                        });
-
-                                        const subJson = await subRes.json();
-                                        if (subJson.error) throw new Error(subJson.error);
-
-                                        alert("NFT Minted! TXID: " + subJson.txId);
-                                        window.location.reload();
-
-                                    } catch (err) {
-                                        console.error(err);
-                                        alert("Error: " + err.message);
-                                        submitBtn.disabled = false;
-                                        submitBtn.innerHTML = originalText;
-                                    }
-                                });
-                            }
-                        });
-                    </script>
-
-                    <!-- Smart Contract Tab -->
-                    <div class="tab-pane fade" id="contract" role="tabpanel">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h4 class="mb-0 fw-bold">Simple Bank Contract</h4>
-                            <span class="badge bg-light text-dark border">TestNet</span>
-                        </div>
-
-                        <div class="row g-4">
-                            <!-- Left Column: Actions -->
-                            <div class="col-lg-5">
-                                <!-- Deploy Card -->
-                                <div class="card shadow-sm border mb-4">
-                                    <div class="card-body">
-                                        <h5 class="card-title fw-bold text-primary"><i
-                                                class="fas fa-rocket me-2"></i>Deploy</h5>
-                                        <p class="small text-muted mb-3">Compile & Deploy new Bank Instance.</p>
-                                        <form action="{{ url_for('wallet_contract_deploy') }}" method="POST">
-                                            <button type="submit" class="btn btn-primary w-100">Deploy New Bank</button>
-                                        </form>
-                                    </div>
-                                </div>
-
-                                <!-- Interact Card -->
-                                <div class="card shadow-sm border">
-                                    <div class="card-body">
-                                        <h5 class="card-title fw-bold text-success"><i
-                                                class="fas fa-exchange-alt me-2"></i>Interact</h5>
-                                        <p class="small text-muted mb-3">Deposit or Withdraw from existing Bank.</p>
-                                        <form action="{{ url_for('wallet_contract_interact') }}" method="POST">
-                                            <div class="mb-3">
-                                                <label class="form-label small">App ID</label>
-                                                <input type="number" name="app_id" class="form-control"
-                                                    placeholder="e.g. 12345678" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label small">Action</label>
-                                                <div class="btn-group w-100" role="group">
-                                                    <input type="radio" class="btn-check" name="action" value="deposit"
-                                                        id="btnDeposit" checked>
-                                                    <label class="btn btn-outline-success"
-                                                        for="btnDeposit">Deposit</label>
-                                                    <input type="radio" class="btn-check" name="action" value="withdraw"
-                                                        id="btnWithdraw">
-                                                    <label class="btn btn-outline-warning"
-                                                        for="btnWithdraw">Withdraw</label>
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label small">Amount (ALGO)</label>
-                                                <input type="number" name="amount" class="form-control"
-                                                    placeholder="0.0" step="0.1">
-                                            </div>
-                                            <button type="submit" class="btn btn-dark w-100">Submit Transaction</button>
-                                        </form>
-                                    </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="input-label text-base mb-2">Amount (ALGO)</label>
+                                <div class="relative">
+                                    <span
+                                        class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-400">
+                                        <i class="fas fa-coins text-lg"></i>
+                                    </span>
+                                    <input type="number" name="amount" class="input-field pl-12 py-4 text-base"
+                                        step="0.000001" placeholder="0.00" required>
                                 </div>
                             </div>
-
-                            <!-- Right Column: History & Stats -->
-                            <div class="col-lg-7">
-                                <div class="card shadow-sm border h-100">
-                                    <div class="card-header bg-white py-3">
-                                        <h5 class="mb-0 fw-bold"><i
-                                                class="fas fa-history me-2 text-secondary"></i>Contract Activity</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <form action="{{ url_for('wallet_contract_history') }}" method="POST"
-                                            class="row g-2 align-items-center mb-4">
-                                            <div class="col">
-                                                <input type="number" name="app_id" class="form-control form-control-sm"
-                                                    placeholder="Enter App ID to fetch history..."
-                                                    value="{{ app_id if app_id else '' }}" required>
-                                            </div>
-                                            <div class="col-auto">
-                                                <button type="submit" class="btn btn-secondary btn-sm">Fetch</button>
-                                            </div>
-                                        </form>
-
-                                        {% if contract_history %}
-                                        <div class="table-responsive custom-scroll">
-                                            <table class="table table-hover mb-0">
-                                                <thead class="table-light sticky-top">
-                                                    <tr>
-                                                        <th>Round</th>
-                                                        <th>Action</th>
-                                                        <th>Amt</th>
-                                                        <th>User</th>
-                                                        <th>TX</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for row in contract_history %}
-                                                    <tr>
-                                                        <td><small class="font-monospace">{{ row.round }}</small></td>
-                                                        <td>
-                                                            <span
-                                                                class="badge bg-{{ 'success' if row.action == 'Deposit' else 'warning' if row.action == 'Withdrawal' else 'secondary' }} rounded-pill">
-                                                                {{ row.action }}
-                                                            </span>
-                                                        </td>
-                                                        <td class="fw-bold">{{ row.amount }}</td>
-                                                        <td><small class="text-muted" title="{{ row.user }}">{{
-                                                                row.user[:6] }}..</small></td>
-                                                        <td><a href="https://lora.algokit.io/testnet/transaction/{{ row.tx_id }}"
-                                                                target="_blank" class="text-primary"><i
-                                                                    class="fas fa-external-link-alt small"></i></a></td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        {% else %}
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="fas fa-search fa-3x mb-3 opacity-25"></i>
-                                            <p>Enter an App ID to view transaction history.</p>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                            <div>
+                                <label class="input-label text-base mb-2">Note <span
+                                        class="normal-case font-normal text-slate-400">(Optional)</span></label>
+                                <input type="text" name="note" class="input-field py-4 text-base"
+                                    placeholder="Transaction Note">
                             </div>
                         </div>
-                    </div>
+
+                        <button type="submit" id="pay-submit-btn"
+                            class="w-full btn-accent rounded-2xl py-4 text-lg font-bold shadow-lg shadow-accent/20 hover:shadow-accent/40 mt-4 transition-all">
+                            <i class="fas fa-paper-plane mr-2"></i>Send ALGO
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
+
+        <!-- Right Column: Stacked Features (Grid Rows 3) -->
+        <div class="grid grid-rows-3 gap-6 h-full">
+
+            <!-- 1. Create Token -->
+            <div class="glass-card p-6 flex flex-col justify-center relative group cursor-pointer hover:border-emerald-500/30 transition-all border border-transparent"
+                onclick="document.getElementById('modal-create-asset').classList.remove('hidden')">
+                <div
+                    class="absolute top-4 right-4 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors">
+                    <i
+                        class="fas fa-coins text-6xl transform group-hover:scale-110 transition-transform duration-500"></i>
+                </div>
+                <div class="relative z-10">
+                    <h5 class="font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2 text-lg">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        Create Asset (ASA)
+                    </h5>
+                    <p class="text-sm text-slate-500 dark:text-gray-400 mb-4 line-clamp-2 pr-12">Mint your own fungible
+                        tokens with custom supply and decimals.</p>
+
+                    <button class="text-emerald-500 font-bold text-sm hover:underline flex items-center">
+                        Launch Creator <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Mint NFT -->
+            <div class="glass-card p-6 flex flex-col justify-center relative group cursor-pointer hover:border-cyan-500/30 transition-all border border-transparent"
+                onclick="document.getElementById('modal-mint-nft').classList.remove('hidden')">
+                <div class="absolute top-4 right-4 text-cyan-500/10 group-hover:text-cyan-500/20 transition-colors">
+                    <i
+                        class="fas fa-image text-6xl transform group-hover:scale-110 transition-transform duration-500"></i>
+                </div>
+                <div class="relative z-10">
+                    <h5 class="font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2 text-lg">
+                        <div class="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-500">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        Mint NFT (ARC-3)
+                    </h5>
+                    <p class="text-sm text-slate-500 dark:text-gray-400 mb-4 line-clamp-2 pr-12">Create standard NFTs
+                        with IPFS metadata support.</p>
+
+                    <button class="text-cyan-500 font-bold text-sm hover:underline flex items-center">
+                        Start Minting <i class="fas fa-arrow-right ml-2 text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Smart Contract -->
+            <div
+                class="glass-card p-6 flex flex-col justify-center relative group hover:border-indigo-500/30 transition-all border border-transparent">
+                <div class="absolute top-4 right-4 text-indigo-500/10 group-hover:text-indigo-500/20 transition-colors">
+                    <i
+                        class="fas fa-file-code text-6xl transform group-hover:scale-110 transition-transform duration-500"></i>
+                </div>
+                <div class="relative z-10">
+                    <h5 class="font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2 text-lg">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                            <i class="fas fa-code"></i>
+                        </div>
+                        Bank Contract
+                    </h5>
+                    <p class="text-sm text-slate-500 dark:text-gray-400 mb-4 line-clamp-2 pr-12">Simple Bank Contract on
+                        TestNet.</p>
+
+                    <div class="flex gap-2 mt-auto">
+                        <form action="{{ url_for('wallet_contract_deploy') }}" method="POST" class="flex-1">
+                            <button type="submit"
+                                class="w-full h-10 rounded-xl bg-slate-800 dark:bg-white/10 text-white text-xs font-bold hover:bg-slate-700 dark:hover:bg-white/20 transition-colors flex items-center justify-center">
+                                Deploy
+                            </button>
+                        </form>
+                        <button onclick="document.getElementById('modal-contract-interact').classList.remove('hidden')"
+                            class="flex-1 h-10 rounded-xl border border-slate-200 dark:border-[#2B2F3A] text-slate-600 dark:text-gray-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center">
+                            Interact
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
+
+    <!-- Modals -->
+
+    <!-- Modal: Create Asset -->
+    <div id="modal-create-asset"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="glass-card max-w-lg w-full p-6 relative shadow-2xl transform transition-all scale-100">
+            <button onclick="document.getElementById('modal-create-asset').classList.add('hidden')"
+                class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-white/5">
+                <i class="fas fa-times"></i>
+            </button>
+            <h4 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                <i class="fas fa-coins text-emerald-500"></i> Create Fungible Token
+            </h4>
+
+            <form action="{{ url_for('wallet_create_asset') }}" method="POST" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="input-label">Asset Name</label>
+                        <input type="text" name="asset_name" class="input-field" placeholder="e.g. CampusCoin" required>
+                    </div>
+                    <div>
+                        <label class="input-label">Unit Name</label>
+                        <input type="text" name="unit_name" class="input-field" placeholder="e.g. CMP" maxlength="8"
+                            required>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="input-label">Total Supply</label>
+                        <input type="number" name="total" class="input-field" value="1000000" required>
+                    </div>
+                    <div>
+                        <label class="input-label">Decimals</label>
+                        <input type="number" name="decimals" class="input-field" value="0" required>
+                    </div>
+                </div>
+                <div>
+                    <label class="input-label">URL (Optional)</label>
+                    <input type="url" name="url" class="input-field" placeholder="https://example.com">
+                </div>
+                <button type="submit" id="asa-submit-btn" class="w-full btn-accent rounded-xl py-3 mt-2">
+                    <i class="fas fa-plus-circle mr-2"></i>Create Asset
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Mint NFT -->
+    <div id="modal-mint-nft"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="glass-card max-w-xl w-full p-6 relative shadow-2xl transform transition-all scale-100">
+            <button onclick="document.getElementById('modal-mint-nft').classList.add('hidden')"
+                class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-white/5">
+                <i class="fas fa-times"></i>
+            </button>
+            <h4 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                <i class="fas fa-magic text-cyan-500"></i> Mint NFT (ARC-3)
+            </h4>
+
+            <form action="{{ url_for('wallet_mint_nft') }}" method="POST" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="input-label">NFT Name</label>
+                        <input type="text" name="asset_name" class="input-field" placeholder="e.g. Badge #1" required>
+                    </div>
+                    <div>
+                        <label class="input-label">Unit Name</label>
+                        <input type="text" name="unit_name" class="input-field" placeholder="BNFT" maxlength="8"
+                            required>
+                    </div>
+                </div>
+                <div>
+                    <label class="input-label">IPFS Metadata URL</label>
+                    <input type="url" name="ipfs_url" class="input-field" placeholder="ipfs://..." required>
+                </div>
+
+                <!-- Steps -->
+                <div class="flex items-center justify-between py-3 relative">
+                    <div class="absolute top-1/2 left-0 w-full h-px bg-slate-200 dark:bg-[#2B2F3A]/60 -translate-y-1/2">
+                    </div>
+                    <div class="relative bg-white dark:bg-card-dark px-3 text-center z-10">
+                        <i class="fas fa-check-circle text-emerald-400"></i><br>
+                        <small class="text-xs text-slate-500">Upload</small>
+                    </div>
+                    <div class="relative bg-white dark:bg-card-dark px-3 text-center z-10">
+                        <i class="fas fa-circle text-accent"></i><br>
+                        <small class="text-xs text-slate-500">Mint</small>
+                    </div>
+                    <div class="relative bg-white dark:bg-card-dark px-3 text-center z-10">
+                        <i class="far fa-circle text-slate-300"></i><br>
+                        <small class="text-xs text-slate-500">Verify</small>
+                    </div>
+                </div>
+
+                <button type="submit" id="nft-submit-btn" class="w-full btn-accent rounded-xl py-3 mt-2"
+                    style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                    <i class="fas fa-magic mr-2"></i>Mint NFT
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Interact Contract -->
+    <div id="modal-contract-interact"
+        class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="glass-card max-w-lg w-full p-6 relative shadow-2xl transform transition-all scale-100">
+            <button onclick="document.getElementById('modal-contract-interact').classList.add('hidden')"
+                class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-white/5">
+                <i class="fas fa-times"></i>
+            </button>
+            <h4 class="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                <i class="fas fa-exchange-alt text-indigo-500"></i> Interact with Bank
+            </h4>
+
+            <form action="{{ url_for('wallet_contract_interact') }}" method="POST" class="space-y-4">
+                <div>
+                    <label class="input-label">App ID</label>
+                    <input type="number" name="app_id" class="input-field" placeholder="e.g. 12345678" required>
+                </div>
+                <div>
+                    <label class="input-label">Action</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label
+                            class="flex items-center justify-center px-3 py-3 rounded-xl cursor-pointer border transition-all has-[:checked]:bg-emerald-500/10 has-[:checked]:border-emerald-400/30 has-[:checked]:text-emerald-400 border-slate-200 dark:border-[#2B2F3A]">
+                            <input type="radio" name="action" value="deposit" class="hidden" checked>
+                            Deposit
+                        </label>
+                        <label
+                            class="flex items-center justify-center px-3 py-3 rounded-xl cursor-pointer border transition-all has-[:checked]:bg-amber-500/10 has-[:checked]:border-amber-400/30 has-[:checked]:text-amber-400 border-slate-200 dark:border-[#2B2F3A]">
+                            <input type="radio" name="action" value="withdraw" class="hidden">
+                            Withdraw
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="input-label">Amount (ALGO)</label>
+                    <input type="number" name="amount" class="input-field" placeholder="0.0" step="0.1">
+                </div>
+                <button type="submit" class="w-full btn-accent rounded-xl py-3 mt-2">
+                    Submit Transaction
+                </button>
+            </form>
+
+            <div class="mt-6 pt-6 border-t border-slate-200 dark:border-[#2B2F3A]">
+                <h5 class="text-sm font-bold mb-3">Check History</h5>
+                <form action="{{ url_for('wallet_contract_history') }}" method="POST" class="flex gap-2">
+                    <input type="number" name="app_id" class="input-field text-sm flex-1" placeholder="Enter App ID..."
+                        required>
+                    <button type="submit" class="btn-outline rounded-xl px-4 text-sm">Fetch</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        // ── Payment Form Logic ──
+        const payForm = document.querySelector('form[action="{{ url_for("wallet_pay") }}"]');
+        if (payForm) {
+            payForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const submitBtn = document.getElementById("pay-submit-btn");
+                const originalText = submitBtn.innerHTML;
+
+                if (!peraWallet.isConnected) {
+                    alert("Please connect your Pera Wallet first!");
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Signing...';
+
+                try {
+                    const formData = new FormData(payForm);
+                    const data = {
+                        sender: peraWallet.connector.accounts[0],
+                        receiver: formData.get("receiver"),
+                        amount: formData.get("amount"),
+                        note: formData.get("note")
+                    };
+
+                    const prepRes = await fetch("/api/prepare_payment", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data)
+                    });
+
+                    const prepJson = await prepRes.json();
+                    if (prepJson.error) throw new Error(prepJson.error);
+
+                    const binaryString = atob(prepJson.txn_b64);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+
+                    const txn = algosdk.decodeUnsignedTransaction(bytes);
+                    const singleTxnGroups = [{ txn: txn, signers: [peraWallet.connector.accounts[0]] }];
+                    const signedTxns = await peraWallet.signTransaction([singleTxnGroups]);
+
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+                    const signedBytes = signedTxns[0];
+                    let binary = '';
+                    for (let i = 0; i < signedBytes.length; i++) {
+                        binary += String.fromCharCode(signedBytes[i]);
+                    }
+                    const signedB64 = btoa(binary);
+
+                    const subRes = await fetch("/api/submit_transaction", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ signed_txn: signedB64 })
+                    });
+
+                    const subJson = await subRes.json();
+                    if (subJson.error) throw new Error(subJson.error);
+
+                    alert("Transaction Sent! TXID: " + subJson.txId);
+                    window.location.reload();
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Error: " + err.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        }
+
+        // ── ASA Creation Logic ──
+        const asaForm = document.querySelector('form[action="{{ url_for("wallet_create_asset") }}"]');
+        if (asaForm) {
+            asaForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const submitBtn = document.getElementById("asa-submit-btn");
+                const originalText = submitBtn.innerHTML;
+
+                if (!peraWallet.isConnected) {
+                    alert("Please connect your Pera Wallet first!");
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Signing...';
+
+                try {
+                    const formData = new FormData(asaForm);
+                    const data = {
+                        sender: peraWallet.connector.accounts[0],
+                        asset_name: formData.get("asset_name"),
+                        unit_name: formData.get("unit_name"),
+                        total: formData.get("total"),
+                        decimals: formData.get("decimals"),
+                        url: formData.get("url")
+                    };
+
+                    const prepRes = await fetch("/api/prepare_asset_creation", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data)
+                    });
+
+                    const prepJson = await prepRes.json();
+                    if (prepJson.error) throw new Error(prepJson.error);
+
+                    const binaryString = atob(prepJson.txn_b64);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+
+                    const txn = algosdk.decodeUnsignedTransaction(bytes);
+                    const singleTxnGroups = [{ txn: txn, signers: [peraWallet.connector.accounts[0]] }];
+                    const signedTxns = await peraWallet.signTransaction([singleTxnGroups]);
+
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Minting...';
+
+                    const signedBytes = signedTxns[0];
+                    let binary = '';
+                    for (let i = 0; i < signedBytes.length; i++) {
+                        binary += String.fromCharCode(signedBytes[i]);
+                    }
+                    const signedB64 = btoa(binary);
+
+                    const subRes = await fetch("/api/submit_transaction", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ signed_txn: signedB64 })
+                    });
+
+                    const subJson = await subRes.json();
+                    if (subJson.error) throw new Error(subJson.error);
+
+                    alert("Asset Created! TXID: " + subJson.txId);
+                    window.location.reload();
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Error: " + err.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        }
+
+        // ── NFT Minting Logic ──
+        const nftForm = document.querySelector('form[action="{{ url_for("wallet_mint_nft") }}"]');
+        if (nftForm) {
+            nftForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const submitBtn = document.getElementById("nft-submit-btn");
+                const originalText = submitBtn.innerHTML;
+
+                if (!peraWallet.isConnected) {
+                    alert("Please connect your Pera Wallet first!");
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Signing...';
+
+                try {
+                    const formData = new FormData(nftForm);
+                    const data = {
+                        sender: peraWallet.connector.accounts[0],
+                        asset_name: formData.get("asset_name"),
+                        unit_name: formData.get("unit_name"),
+                        ipfs_url: formData.get("ipfs_url")
+                    };
+
+                    const prepRes = await fetch("/api/prepare_nft_minting", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data)
+                    });
+
+                    const prepJson = await prepRes.json();
+                    if (prepJson.error) throw new Error(prepJson.error);
+
+                    const binaryString = atob(prepJson.txn_b64);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+
+                    const txn = algosdk.decodeUnsignedTransaction(bytes);
+                    const singleTxnGroups = [{ txn: txn, signers: [peraWallet.connector.accounts[0]] }];
+                    const signedTxns = await peraWallet.signTransaction([singleTxnGroups]);
+
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Minting...';
+
+                    const signedBytes = signedTxns[0];
+                    let binary = '';
+                    for (let i = 0; i < signedBytes.length; i++) {
+                        binary += String.fromCharCode(signedBytes[i]);
+                    }
+                    const signedB64 = btoa(binary);
+
+                    const subRes = await fetch("/api/submit_transaction", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ signed_txn: signedB64 })
+                    });
+
+                    const subJson = await subRes.json();
+                    if (subJson.error) throw new Error(subJson.error);
+
+                    alert("NFT Minted! TXID: " + subJson.txId);
+                    window.location.reload();
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Error: " + err.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        }
+        // ── Contract Interaction Logic ──
+        const interactForm = document.querySelector('form[action="{{ url_for("wallet_contract_interact") }}"]');
+        if (interactForm) {
+            interactForm.addEventListener("submit", async function (e) {
+                e.preventDefault();
+                const submitBtn = interactForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+
+                if (!peraWallet.isConnected) {
+                    alert("Please connect your Pera Wallet first!");
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+
+                try {
+                    const formData = new FormData(interactForm);
+                    const action = formData.get("action");
+                    const data = {
+                        sender: peraWallet.connector.accounts[0],
+                        app_id: formData.get("app_id"),
+                        amount: formData.get("amount")
+                    };
+
+                    let endpoint = "";
+                    if (action === "deposit") endpoint = "/api/prepare_bank_deposit";
+                    else if (action === "withdraw") endpoint = "/api/prepare_bank_withdraw";
+
+                    const prepRes = await fetch(endpoint, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data)
+                    });
+
+                    const prepJson = await prepRes.json();
+                    if (prepJson.error) throw new Error(prepJson.error);
+
+                    // Handle Grouped Txns (Deposit usually involves 2 txns: Pay + Call)
+                    let signedTxns;
+                    if (prepJson.txns_b64) {
+                        // Group transaction
+                        const txns = prepJson.txns_b64.map(b64 => {
+                            const binaryString = atob(b64);
+                            const len = binaryString.length;
+                            const bytes = new Uint8Array(len);
+                            for (let i = 0; i < len; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            return { txn: algosdk.decodeUnsignedTransaction(bytes), signers: [peraWallet.connector.accounts[0]] };
+                        });
+                        signedTxns = await peraWallet.signTransaction([txns]);
+                    } else if (prepJson.txn_b64) {
+                        // Single transaction
+                        const binaryString = atob(prepJson.txn_b64);
+                        const len = binaryString.length;
+                        const bytes = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        const txn = algosdk.decodeUnsignedTransaction(bytes);
+                        signedTxns = await peraWallet.signTransaction([[{ txn: txn, signers: [peraWallet.connector.accounts[0]] }]]);
+                    } else {
+                        throw new Error("Invalid response from server");
+                    }
+
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+
+                    // Prepare for submission
+                    // Pera Connect returns a flat array of Uint8Arrays for the signed transactions
+                    const signedBytes = signedTxns;
+
+                    let payload = {};
+
+                    // Check if we have multiple signed transactions (Group) or just one
+                    if (Array.isArray(signedBytes) && signedBytes.length > 0) {
+                        const b64List = signedBytes.map(arr => {
+                            // Convert Uint8Array to base64
+                            let binary = '';
+                            for (let i = 0; i < arr.length; i++) { binary += String.fromCharCode(arr[i]); }
+                            return btoa(binary);
+                        });
+
+                        if (b64List.length > 1) {
+                            // It's a group transaction
+                            payload = { signed_txns: b64List };
+                        } else {
+                            // Single transaction
+                            payload = { signed_txn: b64List[0] };
+                        }
+                    } else {
+                        throw new Error("Invalid response from Pera Wallet");
+                    }
+
+                    const subRes = await fetch("/api/submit_transaction", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const subJson = await subRes.json();
+                    if (subJson.error) throw new Error(subJson.error);
+
+                    alert("Transaction Successful! TXID: " + subJson.txId);
+                    window.location.reload();
+
+                } catch (err) {
+                    console.error(err);
+                    alert("Error: " + err.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

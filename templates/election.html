@@ -1,177 +1,193 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}{{ election['title'] }} - CampaFi{% endblock %}
+{% block title %}{{ election.title }} - CollegePay Voting{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center fade-in">
-    <div class="col-lg-10">
-        <!-- Header -->
-        <div class="d-flex align-items-start justify-content-between mb-4">
-            <div>
-                <a href="{{ url_for('dashboard') }}"
-                    class="text-decoration-none text-muted small mb-2 d-inline-block"><i
-                        class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
-                <h1 class="fw-bold mb-1">{{ election['title'] }}</h1>
-                <p class="text-muted lead mb-0">{{ election['description'] }}</p>
-                <div class="mt-2">
-                    <span
-                        class="badge bg-{{ 'success' if election['status']=='active' else 'secondary' }} rounded-pill px-3">{{
-                        election['status']|upper }}</span>
-                    <span class="text-muted small ms-2"><i class="far fa-calendar-alt me-1"></i> Created: {{
-                        election['created_date'][:10] }}</span>
+<div class="animate-fade-in max-w-4xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-4">
+        <a href="{{ url_for('dashboard') }}" class="text-accent hover:underline">Dashboard</a>
+        <span class="mx-2 text-slate-400">/</span>
+        <a href="{{ url_for('group_detail', group_id=election.group_id) }}" class="text-accent hover:underline">{{
+            election.group_name }}</a>
+        <span class="mx-2 text-slate-400">/</span>
+        <span class="text-slate-500">{{ election.title }}</span>
+    </nav>
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start justify-between mb-6">
+        <div>
+            <a href="{{ url_for('group_detail', group_id=election.group_id) }}"
+                class="text-xs text-slate-400 dark:text-gray-400 hover:text-accent no-underline mb-2 inline-block">
+                <i class="fas fa-arrow-left mr-1"></i>Back to Group
+            </a>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-white mb-1">{{ election.title }}</h1>
+            <p class="text-sm text-slate-400 dark:text-gray-400 mb-2">{{ election.description }}</p>
+            <div class="flex items-center gap-2">
+                <span
+                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold
+                    {{ 'bg-emerald-500/10 text-emerald-400' if election['status']=='active' else 'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-gray-400' }}">
+                    {{ election['status']|upper }}
+                </span>
+                <span class="text-xs text-slate-400 dark:text-gray-400"><i class="far fa-calendar-alt mr-1"></i>Created:
+                    {{ election['created_date'][:10] }}</span>
+            </div>
+        </div>
+        {% if user['role'] == 'admin' %}
+        {% if election['status'] == 'active' %}
+        <a href="{{ url_for('end_election', eid=election['id']) }}"
+            class="mt-3 sm:mt-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all no-underline"
+            onclick="return confirm('Are you sure you want to end this election?');">
+            <i class="fas fa-stop-circle mr-1"></i>End Election
+        </a>
+        {% elif election['status'] == 'ended' %}
+        <a href="{{ url_for('delete_election', eid=election['id']) }}"
+            class="mt-3 sm:mt-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all no-underline"
+            onclick="return confirm('Are you sure you want to DELETE this election? This action cannot be undone.');">
+            <i class="fas fa-trash-alt mr-1"></i>Delete Election
+        </a>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <!-- Voting Section -->
+        <div class="lg:col-span-7">
+            <div class="glass-card overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A]">
+                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Candidates</h4>
+                </div>
+                <div class="p-5">
+                    {% if has_voted %}
+                    <div class="rounded-xl p-3 bg-emerald-500/10 border border-emerald-500/20 mb-4">
+                        <i class="fas fa-check-circle text-emerald-400 mr-2"></i>
+                        <span class="text-sm text-emerald-300">You have already voted in this election.</span>
+                    </div>
+                    {% endif %}
+
+                    {% if user['role'] == 'admin' %}
+                    <div class="rounded-xl p-3 bg-cyan-500/10 border border-cyan-500/20 mb-4">
+                        <i class="fas fa-info-circle text-cyan-400 mr-2"></i>
+                        <span class="text-sm text-cyan-300">Administrators are not eligible to vote in elections.</span>
+                    </div>
+                    {% endif %}
+
+                    {% if election['status'] == 'active' and not has_voted and user['role'] != 'admin' %}
+                    <form method="post" class="space-y-3">
+                        {% for candidate in candidates %}
+                        <label
+                            class="flex items-center gap-3 p-4 rounded-xl border-2 border-slate-200 dark:border-[#2B2F3A] cursor-pointer hover:border-accent/50 transition-all has-[:checked]:border-accent has-[:checked]:bg-accent/5">
+                            <input class="text-accent focus:ring-accent w-4 h-4" type="radio" name="candidate"
+                                value="{{ candidate['id'] }}" required>
+                            <span class="font-bold text-sm text-slate-800 dark:text-white">{{ candidate['name']
+                                }}</span>
+                        </label>
+                        {% endfor %}
+
+                        <button type="submit"
+                            class="w-full mt-4 py-3 rounded-xl font-bold text-sm text-white transition-all"
+                            style="background: linear-gradient(135deg, #667eea, #764ba2); box-shadow: 0 4px 15px rgba(102,126,234,0.3);">
+                            <i class="fas fa-vote-yea mr-2"></i>Cast Vote (Recorded on Blockchain)
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="space-y-2">
+                        {% for candidate in candidates %}
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-[#1C1F2B]/60">
+                            <i class="fas fa-user-tie text-slate-400"></i>
+                            <span class="text-sm font-medium text-slate-700 dark:text-gray-200">{{ candidate['name']
+                                }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
-            {% if user['role'] == 'admin' %}
-            {% if election['status'] == 'active' %}
-            <a href="{{ url_for('end_election', eid=election['id']) }}" class="btn btn-danger btn-sm"
-                onclick="return confirm('Are you sure you want to end this election?');">
-                <i class="fas fa-stop-circle me-1"></i> End Election
-            </a>
-            {% elif election['status'] == 'ended' %}
-            <a href="{{ url_for('delete_election', eid=election['id']) }}" class="btn btn-outline-danger btn-sm"
-                onclick="return confirm('Are you sure you want to DELETE this election? This action cannot be undone.');">
-                <i class="fas fa-trash-alt me-1"></i> Delete Election
-            </a>
-            {% endif %}
-            {% endif %}
         </div>
 
-        <div class="row g-4">
-            <!-- Voting Section -->
-            <div class="col-lg-7">
-                <div class="card h-100 shadow-sm border-0">
-                    <div class="card-header bg-white">
-                        <h4 class="mb-0">Candidates</h4>
-                    </div>
-                    <div class="card-body">
-                        {% if has_voted %}
-                        <div class="alert alert-success border-0 shadow-sm">
-                            <i class="fas fa-check-circle me-2"></i> You have already voted in this election.
-                        </div>
-                        {% endif %}
-
-                        {% if user['role'] == 'admin' %}
-                        <div class="alert alert-info border-0 shadow-sm">
-                            <i class="fas fa-info-circle me-2"></i> Administrators are not eligible to vote in
-                            elections.
-                        </div>
-                        {% endif %}
-
-                        {% if election['status'] == 'active' and not has_voted and user['role'] != 'admin' %}
-                        <form method="post">
-                            <div class="list-group list-group-flush mb-4">
-                                {% for candidate in candidates %}
-                                <label class="list-group-item list-group-item-action p-3 rounded mb-2 border">
-                                    <div class="d-flex align-items-center">
-                                        <input class="form-check-input me-3" type="radio" name="candidate"
-                                            value="{{ candidate['id'] }}" required style="transform: scale(1.2);">
-                                        <div>
-                                            <span class="fw-bold fs-5">{{ candidate['name'] }}</span>
-                                        </div>
-                                    </div>
-                                </label>
-                                {% endfor %}
-                            </div>
-                            <button type="submit" class="btn btn-primary btn-lg w-100">
-                                <i class="fas fa-vote-yea me-2"></i>Cast Vote (Recorded on Blockchain)
-                            </button>
-                        </form>
-                        {% else %}
-                        <!-- List candidates without radio buttons if not voting -->
-                        <ul class="list-group list-group-flush">
-                            {% for candidate in candidates %}
-                            <li class="list-group-item px-0 py-3 border-bottom">
-                                <i class="fas fa-user-tie me-3 text-secondary"></i>
-                                <span class="fw-medium">{{ candidate['name'] }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% endif %}
-                    </div>
+        <!-- Results Section (Admins Only) -->
+        {% if user['role'] == 'admin' %}
+        <div class="lg:col-span-5">
+            <div class="glass-card overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A]">
+                    <h4 class="font-bold text-sm text-slate-800 dark:text-white">Live Results</h4>
                 </div>
-            </div>
-
-            <!-- Results Section (Admins Only) -->
-            {% if user['role'] == 'admin' %}
-            <div class="col-lg-5">
-                <div class="card h-100 shadow-sm border-0">
-                    <div class="card-header bg-white">
-                        <h4 class="mb-0">Live Results</h4>
-                    </div>
-                    <div class="card-body">
-                        {% if results %}
+                <div class="p-5">
+                    {% if results %}
+                    <div class="space-y-3">
                         {% for row in results %}
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span class="fw-bold">{{ row['name'] }}</span>
-                                <span class="badge bg-light text-dark">{{ row['votes'] }} votes</span>
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-sm font-bold text-slate-700 dark:text-gray-200">{{ row['name']
+                                    }}</span>
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#2B2F3A]/60 text-slate-500 dark:text-gray-400">{{
+                                    row['votes'] }} votes</span>
                             </div>
-                            <div class="progress" style="height: 10px;">
-                                <!-- Calculate percentage logic needed usually, simplistic here -->
-                                <div class="progress-bar bg-primary" role="progressbar"
-                                    style="width: {{ (row['votes'] / (results|sum(attribute='votes') if results|sum(attribute='votes') > 0 else 1) * 100)|int }}%">
+                            <div class="w-full h-2 rounded-full bg-slate-100 dark:bg-[#2B2F3A]/60 overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-500"
+                                    style="width: {{ (row['votes'] / (results|sum(attribute='votes') if results|sum(attribute='votes') > 0 else 1) * 100)|int }}%; background: linear-gradient(135deg, #667eea, #764ba2);">
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
-                        <hr>
-                        <div class="text-center text-muted small">
-                            Total Votes: {{ results|sum(attribute='votes') }}
-                        </div>
-                        {% else %}
-                        <p class="text-muted text-center py-4">No votes yet.</p>
-                        {% endif %}
                     </div>
+                    <hr class="border-slate-200 dark:border-[#2B2F3A] my-4">
+                    <p class="text-center text-xs text-slate-400 dark:text-gray-400">Total Votes: {{
+                        results|sum(attribute='votes') }}</p>
+                    {% else %}
+                    <p class="text-center text-sm text-slate-400 dark:text-gray-400 py-6">No votes yet.</p>
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
+    </div>
 
-        <!-- Vote Ledger Section -->
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Vote Ledger (Blockchain Verified)</h4>
-                        <span class="badge bg-info text-dark">TestNet</span>
-                    </div>
-                    <div class="card-body">
-                        {% if vote_records %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Details</th>
-                                        <th>Transaction ID</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for vote in vote_records %}
-                                    <tr>
-                                        <td>{{ vote['vote_date'][:19].replace('T', ' ') }}</td>
-                                        <td>Vote cast</td>
-                                        <td>
-                                            <span class="text-monospace small">{{ vote['tx_id'][:8] }}...{{
-                                                vote['tx_id'][-8:] }}</span>
-                                        </td>
-                                        <td>
-                                            <a href="https://lora.algokit.io/testnet/transaction/{{ vote['tx_id'] }}"
-                                                target="_blank" class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-external-link-alt me-1"></i> Verify
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <p class="text-muted text-center py-4">No votes recorded on blockchain yet.</p>
-                        {% endif %}
-                    </div>
+    <!-- Vote Ledger -->
+    <div class="mt-5">
+        <div class="glass-card overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                <h4 class="font-bold text-sm text-slate-800 dark:text-white">Vote Ledger (Blockchain Verified)</h4>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-400">TestNet</span>
+            </div>
+            <div class="p-5">
+                {% if vote_records %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs text-slate-400 dark:text-gray-400 uppercase tracking-wider">
+                                <th class="pb-3 font-medium">Date</th>
+                                <th class="pb-3 font-medium">Details</th>
+                                <th class="pb-3 font-medium">Transaction ID</th>
+                                <th class="pb-3 font-medium">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-white/[0.04]">
+                            {% for vote in vote_records %}
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-[#1C1F2B]/60 transition-colors">
+                                <td class="py-3 text-slate-600 dark:text-gray-300">{{
+                                    vote['vote_date'][:19].replace('T', ' ') }}</td>
+                                <td class="py-3 text-slate-600 dark:text-gray-300">Vote cast</td>
+                                <td class="py-3">
+                                    <code
+                                        class="text-xs text-slate-500 dark:text-gray-400 font-mono">{{ vote['tx_id'][:8] }}...{{ vote['tx_id'][-8:] }}</code>
+                                </td>
+                                <td class="py-3">
+                                    <a href="https://lora.algokit.io/testnet/transaction/{{ vote['tx_id'] }}"
+                                        target="_blank"
+                                        class="btn-outline rounded-lg px-2.5 py-1 text-[10px] no-underline">
+                                        <i class="fas fa-external-link-alt mr-1"></i>Verify
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
+                {% else %}
+                <p class="text-center text-sm text-slate-400 dark:text-gray-400 py-6">No votes recorded on blockchain
+                    yet.</p>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -1,6 +1,461 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}{{ group['name'] }} - CampaFi{% endblock %}
+{% block title %}{{ group.name }} - CollegePay Groups{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="rounded-2xl p-6 mb-6 relative overflow-hidden"
+        style="background: linear-gradient(135deg, #0a0a23, #1a1a3e, #2d1b69);">
+        <div class="absolute top-0 right-0 p-6 opacity-10">
+            <i class="fas fa-users" style="font-size: 8rem;"></i>
+        </div>
+        <div class="relative z-10">
+            <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-accent/20 text-accent mb-2">{{
+                group['category'] }}</span>
+            <h1 class="text-3xl font-bold text-white mb-2">{{ group['name'] }}</h1>
+            <p class="text-white/50 text-sm max-w-xl">{{ group['description'] }}</p>
+            <div class="flex items-center gap-4 mt-3 text-sm text-white/60">
+                <span><i class="fas fa-crown mr-1 text-amber-400"></i>Created by Admin/User {{ group['created_by']
+                    }}</span>
+                <span><i class="far fa-calendar mr-1"></i>{{ group['created_date'][:10] }}</span>
+            </div>
+        </div>
+        {% if is_lead or user['role'] == 'admin' %}
+        <div class="absolute top-4 right-4 z-20">
+            <form action="{{ url_for('delete_group', group_id=group['id']) }}" method="post"
+                onsubmit="return confirm('Are you sure you want to delete this group? This cannot be undone.');">
+                <button type="submit"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all">
+                    <i class="fas fa-trash-alt mr-1"></i>Delete Group
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-8">
+            <!-- Tabs -->
+            <div class="flex gap-1 mb-4 bg-slate-100 dark:bg-[#1C1F2B]/80 rounded-xl p-1">
+                <button class="group-tab active flex-1 py-2 text-xs font-bold rounded-lg transition-all"
+                    onclick="switchGroupTab('tasks', this)">Tasks</button>
+                <button class="group-tab flex-1 py-2 text-xs font-bold rounded-lg transition-all"
+                    onclick="switchGroupTab('milestones', this)">Milestones</button>
+                <button class="group-tab flex-1 py-2 text-xs font-bold rounded-lg transition-all"
+                    onclick="switchGroupTab('dao', this)">DAO Treasury</button>
+            </div>
+
+            <!-- Tasks Tab -->
+            <div class="group-tab-content" id="tab-tasks">
+                <div class="glass-card overflow-hidden">
+                    <div
+                        class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                        <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200">
+                            <i class="fas fa-tasks mr-2 text-accent"></i>Tasks
+                        </h5>
+                        {% if is_lead or user['role'] == 'admin' %}
+                        <button class="btn-outline rounded-full px-3 py-1 text-xs" onclick="openModal('addTaskModal')">
+                            <i class="fas fa-plus mr-1"></i> New Task
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="p-4">
+                        {% if tasks %}
+                        <div class="space-y-2">
+                            {% for task in tasks %}
+                            <div
+                                class="rounded-xl p-3 hover:bg-slate-50/50 dark:hover:bg-[#1C1F2B]/60 transition-colors">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-start gap-2">
+                                        {% if task['status'] == 'completed' %}
+                                        <i class="fas fa-check-circle text-emerald-400 mt-0.5"></i>
+                                        <span class="text-sm text-slate-400 line-through">{{ task['title'] }}</span>
+                                        {% else %}
+                                        <form
+                                            action="{{ url_for('complete_task', group_id=group['id'], task_id=task['id']) }}"
+                                            method="post" class="inline">
+                                            <button type="submit"
+                                                class="text-slate-300 dark:text-gray-600 hover:text-accent transition-colors">
+                                                <i class="far fa-circle mt-0.5"></i>
+                                            </button>
+                                        </form>
+                                        <span class="text-sm text-slate-700 dark:text-gray-200">{{ task['title']
+                                            }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-right">
+                                        {% if task['assigned_to'] %}
+                                        <span
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#2B2F3A]/60 text-slate-500 dark:text-gray-400">
+                                            <i class="fas fa-user mr-1"></i>{{ task['assignee_name'] }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-[10px] text-slate-300 dark:text-gray-600">Unassigned</span>
+                                        {% endif %}
+                                        {% if task['status'] == 'completed' %}
+                                        <a href="https://lora.algokit.io/testnet/transaction/{{ task['tx_id'] }}"
+                                            target="_blank"
+                                            class="block text-[10px] text-accent mt-1 no-underline hover:underline">
+                                            <i class="fas fa-link mr-1"></i>Proof
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <p class="text-xs text-slate-400 dark:text-gray-400 ml-6 mt-1">{{ task['description'] }}
+                                </p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-center text-sm text-slate-400 dark:text-gray-400 py-8">No tasks created yet.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Milestones Tab -->
+            <div class="group-tab-content hidden" id="tab-milestones">
+                <div class="glass-card overflow-hidden">
+                    <div
+                        class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                        <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200">
+                            <i class="fas fa-flag-checkered mr-2 text-emerald-400"></i>Milestones
+                        </h5>
+                        {% if is_lead or user['role'] == 'admin' %}
+                        <button class="btn-outline rounded-full px-3 py-1 text-xs"
+                            onclick="openModal('addMilestoneModal')">
+                            <i class="fas fa-plus mr-1"></i> New Milestone
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="p-5">
+                        {% if milestones %}
+                        <div class="space-y-4">
+                            {% for m in milestones %}
+                            <div
+                                class="relative pl-6 pb-4 {{ 'border-l-2 border-emerald-400' if m['completed_date'] else 'border-l-2 border-slate-200 dark:border-white/10' }}">
+                                <div
+                                    class="absolute left-0 top-0 -translate-x-1/2 w-3 h-3 rounded-full {{ 'bg-emerald-400' if m['completed_date'] else 'bg-slate-200 dark:bg-white/20 border-2 border-slate-300 dark:border-white/30' }}">
+                                </div>
+                                <h6 class="font-bold text-sm text-slate-800 dark:text-white mb-1">{{ m['title'] }}</h6>
+                                <p class="text-xs text-slate-400 dark:text-gray-400 mb-2">{{ m['description'] }}</p>
+                                {% if m['completed_date'] %}
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400">
+                                    <i class="fas fa-check mr-1"></i>Completed: {{ m['completed_date'][:10] }}
+                                </span>
+                                {% else %}
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#2B2F3A]/60 text-slate-500 dark:text-gray-400 mr-2">
+                                    Target: {{ m['target_date'] }}
+                                </span>
+                                <form
+                                    action="{{ url_for('complete_milestone', group_id=group['id'], milestone_id=m['id']) }}"
+                                    method="post" class="inline">
+                                    <button type="submit" class="text-xs text-accent hover:underline">Mark
+                                        Complete</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-center text-sm text-slate-400 dark:text-gray-400 py-8">No milestones set.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- DAO Treasury Tab -->
+            <div class="group-tab-content hidden" id="tab-dao">
+                <div class="glass-card overflow-hidden">
+                    <div
+                        class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                        <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200">
+                            <i class="fas fa-coins mr-2 text-amber-400"></i>DAO Treasury
+                        </h5>
+                        {% if is_lead or user['role'] == 'admin' %}
+                        <button class="btn-outline rounded-full px-3 py-1 text-xs"
+                            onclick="openModal('createProposalModal')">
+                            <i class="fas fa-plus mr-1"></i> New Proposal
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="p-5">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h6 class="text-xs text-slate-400 dark:text-gray-400 mb-0.5">Current Balance:</h6>
+                                <h4 class="text-xl font-bold text-slate-800 dark:text-white">{{ treasury_balance }} ALGO
+                                </h4>
+                            </div>
+                        </div>
+                        <hr class="border-slate-200 dark:border-[#2B2F3A] mb-4">
+                        <h6 class="font-bold text-sm text-slate-700 dark:text-gray-200 mb-3">Proposals</h6>
+                        {% if proposals %}
+                        <div class="space-y-3">
+                            {% for proposal in proposals %}
+                            <div
+                                class="rounded-xl p-4 bg-slate-50/50 dark:bg-[#1C1F2B]/60 border border-slate-100 dark:border-[#2B2F3A]">
+                                <div class="flex items-start justify-between mb-2">
+                                    <h5 class="font-bold text-sm text-slate-800 dark:text-white">{{ proposal['title'] }}
+                                    </h5>
+                                    <small class="text-xs text-slate-400">{{ proposal['created_date'][:10] if
+                                        proposal['created_date'] else '' }}</small>
+                                </div>
+                                <p class="text-xs text-slate-500 dark:text-gray-400 mb-2">{{ proposal['description'] }}
+                                </p>
+                                <small class="text-xs text-slate-400 dark:text-gray-400">
+                                    Amount: {{ proposal['amount_algo'] }} ALGO to
+                                    <span title="{{ proposal['recipient_address'] }}">
+                                        {{ proposal['recipient_address'][:8] }}...{{ proposal['recipient_address'][-4:]
+                                        }}
+                                    </span>
+                                </small>
+                                <div class="flex items-center justify-between mt-3">
+                                    <div>
+                                        {% if proposal['status'] == 'pending' or proposal['status'] == 'active' %}
+                                        <span
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400">Pending</span>
+                                        {% elif proposal['status'] == 'approved' %}
+                                        <span
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400">Approved</span>
+                                        {% elif proposal['status'] == 'rejected' %}
+                                        <span
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400">Rejected</span>
+                                        {% elif proposal['status'] == 'executed' %}
+                                        <span
+                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent/10 text-accent">Executed</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="flex gap-1.5">
+                                        {% if (proposal['status'] == 'pending' or proposal['status'] == 'active') and
+                                        user['role'] == 'admin' %}
+                                        <form
+                                            action="{{ url_for('approve_proposal', group_id=group['id'], proposal_id=proposal['id']) }}"
+                                            method="post" class="inline">
+                                            <button type="submit"
+                                                class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">Approve</button>
+                                        </form>
+                                        <form
+                                            action="{{ url_for('reject_proposal', group_id=group['id'], proposal_id=proposal['id']) }}"
+                                            method="post" class="inline">
+                                            <button type="submit"
+                                                class="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Reject</button>
+                                        </form>
+                                        {% elif proposal['status'] == 'approved' and user['role'] == 'admin' %}
+                                        <form
+                                            action="{{ url_for('execute_proposal', group_id=group['id'], proposal_id=proposal['id']) }}"
+                                            method="post" class="inline">
+                                            <button type="submit"
+                                                class="px-2.5 py-1 rounded-lg text-xs font-bold bg-accent/10 text-accent hover:bg-accent/20 transition-colors">Execute</button>
+                                        </form>
+                                        {% elif proposal['status'] == 'executed' %}
+                                        <a href="https://testnet.explorer.perawallet.app/tx/{{ proposal['tx_id'] }}"
+                                            target="_blank"
+                                            class="px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors no-underline">
+                                            <i class="fas fa-link mr-1"></i>Tx Proof
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-center text-sm text-slate-400 dark:text-gray-400 py-6">No treasury proposals yet.
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Members Sidebar -->
+        <div class="lg:col-span-4">
+            <div class="glass-card overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A]">
+                    <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200">Team Members</h5>
+                </div>
+                <div class="divide-y divide-slate-100 dark:divide-white/[0.04]">
+                    {% for member in members %}
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-9 h-9 rounded-full bg-slate-100 dark:bg-[#2B2F3A]/60 flex items-center justify-center text-slate-400">
+                                <i class="fas fa-user text-sm"></i>
+                            </div>
+                            <div>
+                                <h6 class="font-bold text-sm text-slate-800 dark:text-white">{{ member['name'] }}</h6>
+                                <small class="text-xs text-slate-400 dark:text-gray-400">
+                                    {{ member['role']|title }}
+                                    {% if member['status'] == 'invited' %}
+                                    <span
+                                        class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400">Invited</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="px-4 py-3 text-center">
+                        <button class="text-xs text-accent hover:underline" onclick="openModal('inviteModal')">
+                            <i class="fas fa-user-plus mr-1"></i> Invite Member
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ Modals ═══ -->
+<!-- Add Task Modal -->
+<div id="addTaskModal" class="modal-overlay hidden" onclick="if(event.target===this)closeModal('addTaskModal')">
+    <div class="modal-container">
+        <form method="post" action="{{ url_for('create_task', group_id=group['id']) }}">
+            <div class="p-5 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                <h5 class="font-bold text-sm text-slate-800 dark:text-white">Add Task</h5>
+                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors"
+                    onclick="closeModal('addTaskModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="input-label">Title</label>
+                    <input type="text" name="title" class="input-field" required>
+                </div>
+                <div>
+                    <label class="input-label">Assign To</label>
+                    <select name="assigned_to" class="input-field">
+                        <option value="">Unassigned</option>
+                        {% for member in members %}
+                        <option value="{{ member['id'] }}">{{ member['name'] }} ({{ member['student_id'] }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="input-label">Description</label>
+                    <textarea name="description" class="input-field resize-none" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="p-5 border-t border-slate-200 dark:border-[#2B2F3A] flex justify-end">
+                <button type="submit" class="btn-accent rounded-xl px-5 py-2 text-sm">Add Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Milestone Modal -->
+<div id="addMilestoneModal" class="modal-overlay hidden"
+    onclick="if(event.target===this)closeModal('addMilestoneModal')">
+    <div class="modal-container">
+        <form method="post" action="{{ url_for('create_milestone', group_id=group['id']) }}">
+            <div class="p-5 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                <h5 class="font-bold text-sm text-slate-800 dark:text-white">Add Milestone</h5>
+                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors"
+                    onclick="closeModal('addMilestoneModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="input-label">Title</label>
+                    <input type="text" name="title" class="input-field" required>
+                </div>
+                <div>
+                    <label class="input-label">Target Date</label>
+                    <input type="date" name="target_date" class="input-field">
+                </div>
+            </div>
+            <div class="p-5 border-t border-slate-200 dark:border-[#2B2F3A] flex justify-end">
+                <button type="submit" class="py-2 px-5 rounded-xl text-sm font-bold text-white"
+                    style="background: linear-gradient(135deg, #10b981, #059669);">Set Milestone</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Invite Member Modal -->
+<div id="inviteModal" class="modal-overlay hidden" onclick="if(event.target===this)closeModal('inviteModal')">
+    <div class="modal-container">
+        <form method="post" action="{{ url_for('invite_member', group_id=group['id']) }}">
+            <div class="p-5 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                <h5 class="font-bold text-sm text-slate-800 dark:text-white">Invite Member</h5>
+                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors"
+                    onclick="closeModal('inviteModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5">
+                <label class="input-label">Student ID</label>
+                <input type="text" name="student_id" class="input-field" placeholder="Enter Student ID" required>
+            </div>
+            <div class="p-5 border-t border-slate-200 dark:border-[#2B2F3A] flex justify-end">
+                <button type="submit" class="btn-accent rounded-xl px-5 py-2 text-sm">Invite</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Create Proposal Modal -->
+<div id="createProposalModal" class="modal-overlay hidden"
+    onclick="if(event.target===this)closeModal('createProposalModal')">
+    <div class="modal-container">
+        <form method="post" action="{{ url_for('create_proposal', group_id=group['id']) }}">
+            <div class="p-5 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                <h5 class="font-bold text-sm text-slate-800 dark:text-white">New Treasury Proposal</h5>
+                <button type="button" class="text-slate-400 hover:text-slate-600 transition-colors"
+                    onclick="closeModal('createProposalModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="input-label">Title</label>
+                    <input type="text" name="title" class="input-field" required placeholder="e.g. Buy Event Supplies">
+                </div>
+                <div>
+                    <label class="input-label">Amount (ALGO)</label>
+                    <input type="number" step="0.1" name="amount" class="input-field" required>
+                </div>
+                <div>
+                    <label class="input-label">Recipient Address</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="recipient" id="recipientAddressInput" class="input-field flex-1"
+                            required placeholder="Algorand Wallet Address">
+                        <button class="btn-outline rounded-xl px-3 py-2 text-xs whitespace-nowrap" type="button"
+                            id="useMyWalletBtn" onclick="fillMyAddress()">
+                            <i class="fas fa-wallet mr-1"></i>Use My Wallet
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="input-label">Description</label>
+                    <textarea name="description" class="input-field resize-none" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="p-5 border-t border-slate-200 dark:border-[#2B2F3A] flex justify-end">
+                <button type="submit" class="btn-accent rounded-xl px-5 py-2 text-sm">Submit Proposal</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .group-tab {
+        color: var(--text-muted);
+        background: transparent;
+        cursor: pointer;
+        border: none;
+    }
+
+    .group-tab:hover {
+        color: var(--text-primary);
+    }
+
+    .group-tab.active {
+        background: var(--bg-card);
+        color: var(--text-primary);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+</style>
+{% endblock %}
 
 {% block extra_js %}
 <script>
@@ -12,429 +467,21 @@
             alert("Please connect your Pera Wallet first!");
         }
     }
+
+    function switchGroupTab(tabName, btn) {
+        document.querySelectorAll('.group-tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.group-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tabName).classList.remove('hidden');
+        btn.classList.add('active');
+    }
+
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+        document.body.style.overflow = '';
+    }
 </script>
-{% endblock %}
-
-{% block content %}
-<div class="row fade-in">
-    <!-- Header -->
-    <div class="col-12 mb-4">
-        <div class="card bg-dark text-white shadow-lg border-0 overflow-hidden">
-            <div class="card-body p-5 position-relative">
-                <div class="position-absolute top-0 end-0 p-3 opacity-25">
-                    <i class="fas fa-users fa-10x"></i>
-                </div>
-                <div class="position-relative">
-                    <span class="badge bg-primary mb-2">{{ group['category'] }}</span>
-                    <h1 class="display-4 fw-bold">{{ group['name'] }}</h1>
-                    <p class="lead opacity-75" style="max-width: 600px;">{{ group['description'] }}</p>
-                    <div class="d-flex align-items-center mt-4">
-                        <div class="d-flex align-items-center me-4">
-                            <i class="fas fa-crown me-2 text-warning"></i>
-                            <span>Created by Admin/User {{ group['created_by'] }}</span>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <i class="far fa-calendar me-2"></i>
-                            <span>{{ group['created_date'][:10] }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% if is_lead or user['role'] == 'admin' %}
-            <div class="position-absolute top-0 end-0 p-4">
-                <form action="{{ url_for('delete_group', group_id=group['id']) }}" method="post"
-                    onsubmit="return confirm('Are you sure you want to delete this group? This cannot be undone.');">
-                    <button type="submit" class="btn btn-danger">
-                        <i class="fas fa-trash-alt me-2"></i>Delete Group
-                    </button>
-                </form>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-lg-8">
-        <!-- Tabs for Tasks, Milestones, DAO -->
-        <ul class="nav nav-tabs mb-4" id="groupTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks"
-                    type="button" role="tab">Tasks</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="milestones-tab" data-bs-toggle="tab" data-bs-target="#milestones"
-                    type="button" role="tab">Milestones</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="dao-tab" data-bs-toggle="tab" data-bs-target="#dao" type="button"
-                    role="tab">DAO Treasury</button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="groupTabsContent">
-            <!-- Tasks Tab -->
-            <div class="tab-pane fade show active" id="tasks" role="tabpanel">
-                <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                        <h5 class="mb-0 fw-bold"><i class="fas fa-tasks me-2 text-primary"></i>Tasks</h5>
-                        {% if is_lead or user['role'] == 'admin' %}
-                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                            data-bs-target="#addTaskModal">
-                            <i class="fas fa-plus"></i> New Task
-                        </button>
-                        {% endif %}
-                    </div>
-                    <div class="card-body p-0">
-                        {% if tasks %}
-                        <div class="list-group list-group-flush">
-                            {% for task in tasks %}
-                            <div class="list-group-item p-3">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="form-check">
-                                        {% if task['status'] == 'completed' %}
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        <span class="text-decoration-line-through text-muted">{{ task['title'] }}</span>
-                                        {% else %}
-                                        <form
-                                            action="{{ url_for('complete_task', group_id=group['id'], task_id=task['id']) }}"
-                                            method="post" class="d-inline">
-                                            <button type="submit"
-                                                class="btn btn-link p-0 text-dark text-decoration-none">
-                                                <i class="far fa-circle me-2 text-muted"></i>{{ task['title'] }}
-                                            </button>
-                                        </form>
-                                        {% endif %}
-                                        <div class="small text-muted ms-4 ps-1 mt-1">{{ task['description'] }}</div>
-                                    </div>
-                                    <div class="text-end">
-                                        {% if task['assigned_to'] %}
-                                        <span class="badge bg-light text-dark border rounded-pill">
-                                            <i class="fas fa-user me-1"></i> {{ task['assignee_name'] }}
-                                        </span>
-                                        {% else %}
-                                        <span class="badge bg-light text-muted border rounded-pill">Unassigned</span>
-                                        {% endif %}
-                                        {% if task['status'] == 'completed' %}
-                                        <div class="mt-1 small">
-                                            <a href="https://lora.algokit.io/testnet/transaction/{{ task['tx_id'] }}"
-                                                target="_blank" class="text-muted">
-                                                <i class="fas fa-link"></i> Proof
-                                            </a>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-5">
-                            <p class="text-muted mb-0">No tasks created yet.</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Milestones Tab -->
-            <div class="tab-pane fade" id="milestones" role="tabpanel">
-                <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                        <h5 class="mb-0 fw-bold"><i class="fas fa-flag-checkered me-2 text-success"></i>Milestones</h5>
-                        {% if is_lead or user['role'] == 'admin' %}
-                        <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal"
-                            data-bs-target="#addMilestoneModal">
-                            <i class="fas fa-plus"></i> New Milestone
-                        </button>
-                        {% endif %}
-                    </div>
-                    <div class="card-body">
-                        {% if milestones %}
-                        <ul class="timeline list-unstyled">
-                            {% for m in milestones %}
-                            <li
-                                class="position-relative pb-4 ps-4 border-start {{ 'border-success' if m['completed_date'] else 'border-light' }}">
-                                <div class="position-absolute start-0 top-0 translate-middle rounded-circle bg-{{ 'success' if m['completed_date'] else 'light border' }}"
-                                    style="width: 12px; height: 12px;"></div>
-                                <h6 class="fw-bold mb-1">{{ m['title'] }}</h6>
-                                <p class="text-muted small mb-2">{{ m['description'] }}</p>
-                                {% if m['completed_date'] %}
-                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill">
-                                    <i class="fas fa-check me-1"></i> Completed: {{ m['completed_date'][:10] }}
-                                </span>
-                                {% else %}
-                                <span class="badge bg-light text-dark border rounded-pill">
-                                    Target: {{ m['target_date'] }}
-                                </span>
-                                <form
-                                    action="{{ url_for('complete_milestone', group_id=group['id'], milestone_id=m['id']) }}"
-                                    method="post" class="d-inline ms-2">
-                                    <button type="submit" class="btn btn-link btn-sm p-0">Mark Complete</button>
-                                </form>
-                                {% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
-                        <div class="text-center py-5">
-                            <p class="text-muted mb-0">No milestones set.</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- DAO Treasury Tab -->
-            <div class="tab-pane fade" id="dao" role="tabpanel">
-                <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                        <h5 class="mb-0 fw-bold"><i class="fas fa-coins me-2 text-warning"></i>DAO Treasury</h5>
-                        {% if is_lead or user['role'] == 'admin' %}
-                        <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal"
-                            data-bs-target="#createProposalModal">
-                            <i class="fas fa-plus"></i> New Proposal
-                        </button>
-                        {% endif %}
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <h6 class="mb-0 text-muted">Current Balance:</h6>
-                                <h4 class="fw-bold">{{ treasury_balance }} ALGO</h4>
-                            </div>
-
-                        </div>
-
-                        <hr>
-
-                        <h6 class="fw-bold mb-3">Proposals</h6>
-                        {% if proposals %}
-                        <div class="list-group">
-                            {% for proposal in proposals %}
-                            <div class="list-group-item list-group-item-action flex-column align-items-start">
-                                <div class="d-flex w-100 justify-content-between">
-                                    <h5 class="mb-1">{{ proposal['title'] }}</h5>
-                                    <small class="text-muted">{{ proposal['created_date'][:10] if
-                                        proposal['created_date'] else '' }}</small>
-                                </div>
-                                <p class="mb-1">{{ proposal['description'] }}</p>
-                                <small class="text-muted">
-                                    Amount: {{ proposal['amount_algo'] }} ALGO to
-                                    <span title="{{ proposal['recipient_address'] }}">
-                                        {{ proposal['recipient_address'][:8] }}...{{ proposal['recipient_address'][-4:]
-                                        }}
-                                    </span>
-                                </small>
-                                <div class="d-flex justify-content-between align-items-center mt-2">
-                                    <div>
-                                        {% if proposal['status'] == 'pending' or proposal['status'] == 'active' %}
-                                        <span class="badge bg-warning text-dark">Pending</span>
-                                        {% elif proposal['status'] == 'approved' %}
-                                        <span class="badge bg-success">Approved</span>
-                                        {% elif proposal['status'] == 'rejected' %}
-                                        <span class="badge bg-danger">Rejected</span>
-                                        {% elif proposal['status'] == 'executed' %}
-                                        <span class="badge bg-primary">Executed</span>
-                                        {% endif %}
-                                    </div>
-                                    <div>
-                                        {% if (proposal['status'] == 'pending' or proposal['status'] == 'active') and
-                                        user['role'] == 'admin'
-                                        %}
-                                        <form
-                                            action="{{ url_for('approve_proposal', group_id=group['id'], proposal_id=proposal['id']) }}"
-                                            method="post" class="d-inline me-2">
-                                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
-                                        </form>
-                                        <form
-                                            action="{{ url_for('reject_proposal', group_id=group['id'], proposal_id=proposal['id']) }}"
-                                            method="post" class="d-inline">
-                                            <button type="submit" class="btn btn-sm btn-danger">Reject</button>
-                                        </form>
-                                        {% elif proposal['status'] == 'approved' and user['role'] == 'admin' %}
-                                        <form
-                                            action="{{ url_for('execute_proposal', group_id=group['id'], proposal_id=proposal['id']) }}"
-                                            method="post" class="d-inline">
-                                            <button type="submit" class="btn btn-sm btn-primary">Execute</button>
-                                        </form>
-                                        {% elif proposal['status'] == 'executed' %}
-                                        <a href="https://testnet.explorer.perawallet.app/tx/{{ proposal['tx_id'] }}"
-                                            target="_blank" class="btn btn-sm btn-outline-info">
-                                            <i class="fas fa-link me-1"></i> Tx Proof
-                                        </a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div class="text-center py-4">
-                            <p class="text-muted mb-0">No treasury proposals yet.</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-4">
-        <!-- Members Card -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-bold">Team Members</h5>
-            </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    {% for member in members %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div class="bg-light rounded-circle p-2 me-3 text-center"
-                                style="width: 40px; height: 40px;">
-                                <i class="fas fa-user text-secondary"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold">{{ member['name'] }}</h6>
-                                <small class="text-muted">
-                                    {{ member['role']|title }}
-                                    {% if member['status'] == 'invited' %}
-                                    <span class="badge bg-warning text-dark ms-2">Invited</span>
-                                    {% endif %}
-                                </small>
-                            </div>
-                        </div>
-                    </li>
-                    {% endfor %}
-                    <li class="list-group-item text-center">
-                        <button class="btn btn-sm btn-link text-decoration-none" data-bs-toggle="modal"
-                            data-bs-target="#inviteModal">
-                            <i class="fas fa-user-plus me-1"></i> Invite Member
-                        </button>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modals (Simplified for brevity) -->
-<div class="modal fade" id="addTaskModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="post" action="{{ url_for('create_task', group_id=group['id']) }}" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Task</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Title</label>
-                    <input type="text" name="title" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Assign To</label>
-                    <select name="assigned_to" class="form-select">
-                        <option value="">Unassigned</option>
-                        {% for member in members %}
-                        <option value="{{ member['id'] }}">{{ member['name'] }} ({{ member['student_id'] }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Add Task</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="addMilestoneModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="post" action="{{ url_for('create_milestone', group_id=group['id']) }}" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Milestone</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Title</label>
-                    <input type="text" name="title" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Target Date</label>
-                    <input type="date" name="target_date" class="form-control">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-success">Set Milestone</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="inviteModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="post" action="{{ url_for('invite_member', group_id=group['id']) }}" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Invite Member</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Student ID</label>
-                    <input type="text" name="student_id" class="form-control" placeholder="Enter Student ID" required>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Invite</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Create Proposal Modal (Moved here) -->
-<div class="modal fade" id="createProposalModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="post" action="{{ url_for('create_proposal', group_id=group['id']) }}" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">New Treasury Proposal</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Title</label>
-                    <input type="text" name="title" class="form-control" required placeholder="e.g. Buy Event Supplies">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Amount (ALGO)</label>
-                    <input type="number" step="0.1" name="amount" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Recipient Address</label>
-                    <div class="input-group">
-                        <input type="text" name="recipient" id="recipientAddressInput" class="form-control" required
-                            placeholder="Algorand Wallet Address">
-                        <button class="btn btn-outline-secondary" type="button" id="useMyWalletBtn"
-                            onclick="fillMyAddress()">
-                            <i class="fas fa-wallet me-1"></i> Use My Wallet
-                        </button>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <textarea name="description" class="form-control" rows="3"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-primary">Submit Proposal</button>
-            </div>
-        </form>
-    </div>
-</div>
 {% endblock %}

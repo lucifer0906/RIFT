@@ -1,5 +1,5 @@
 /**
- * CampaFi Wallet Core v2.0
+ * CollegePay Wallet Core v2.0
  * Full client-side wallet: connect, balance, history, receive QR, send payment.
  * Dependencies (loaded via CDN / webpack bundle in base.html):
  *   - window.algosdk   (CDN)
@@ -421,9 +421,9 @@ function showToast(message, type = "info") {
     const toast = document.createElement("div");
     toast.className = `alert alert-${type} alert-dismissible fade show shadow-sm mb-2`;
     toast.setAttribute("role", "alert");
-    toast.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    toast.innerHTML = `${message}<button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>`;
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 6000);
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 6000);
 }
 
 function createToastContainer() {
@@ -551,8 +551,8 @@ async function walletLogin() {
  */
 async function walletLogout() {
     try {
-        if (peraWallet) await peraWallet.disconnect().catch(() => {});
-    } catch (_) {}
+        if (peraWallet) await peraWallet.disconnect().catch(() => { });
+    } catch (_) { }
     connectedAccount = null;
     window.location.href = "/logout";
 }

@@ -1,288 +1,283 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Session Detail - CampaFi{% endblock %}
+{% block title %}Attendance Session - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center fade-in">
-    <div class="col-lg-10">
-        <!-- Header -->
-        <div class="card shadow-sm border-0 mb-4 bg-primary text-white">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <h6 class="text-uppercase opacity-75 fw-bold mb-1">Attendance Session</h6>
-                        <h2 class="fw-bold mb-2">{{ session_info['course_code'] }}</h2>
-                        <div class="d-flex align-items-center gap-3">
-                            <span><i class="far fa-calendar me-2"></i>{{ session_info['session_date'] }}</span>
-                            <span><i class="far fa-clock me-2"></i>{{ session_info['session_time_display'] }}</span>
-                            {% if session_info['end_time'] %}
-                            <span class="badge bg-warning text-dark"><i class="fas fa-hourglass-end me-1"></i>Due: {{
-                                session_info['end_time_display'] }}</span>
-                            {% endif %}
-                            <span class="badge bg-white text-primary rounded-pill">{{ session_info['status']|upper
-                                }}</span>
-                        </div>
-                    </div>
-                    {% if not is_instructor and not existing_record %}
-                    {% if session_info['end_time'] and session_info['end_time'] < now %} <div
-                        class="alert alert-warning">
-                        <i class="fas fa-clock me-2"></i> Check-in time has expired.
+<div class="animate-fade-in max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="wallet-balance-gradient rounded-2xl p-6 mb-6 relative overflow-hidden">
+        <div class="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between">
+            <div>
+                <h6 class="text-xs uppercase tracking-widest text-white/50 font-bold mb-1">Attendance Session</h6>
+                <h2 class="text-2xl font-bold text-white mb-2">{{ session_info['course_code'] }}</h2>
+                <div class="flex flex-wrap items-center gap-3 text-sm text-white/70">
+                    <span><i class="far fa-calendar mr-1"></i>{{ session_info['session_date'] }}</span>
+                    <span><i class="far fa-clock mr-1"></i>{{ session_info['session_time_display'] }}</span>
+                    {% if session_info['end_time'] %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-900">
+                        <i class="fas fa-hourglass-end mr-1"></i>Due: {{ session_info['end_time_display'] }}
+                    </span>
+                    {% endif %}
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 text-white">
+                        {{ session_info['status']|upper }}
+                    </span>
                 </div>
-                <button class="btn btn-secondary w-100 btn-lg" disabled>
-                    <i class="fas fa-ban me-2"></i> Session Expired
+            </div>
+            {% if not is_instructor and not existing_record %}
+            {% if session_info['end_time'] and session_info['end_time'] < now %} <div class="mt-3 lg:mt-0">
+                <div class="rounded-xl p-3 bg-amber-500/10 border border-amber-400/30 text-amber-300 text-xs mb-2">
+                    <i class="fas fa-clock mr-1"></i> Check-in time has expired.
+                </div>
+                <button
+                    class="w-full py-2.5 rounded-xl text-sm font-semibold bg-slate-500/30 text-white/50 cursor-not-allowed"
+                    disabled>
+                    <i class="fas fa-ban mr-2"></i> Session Expired
                 </button>
-                {% else %}
-                <form method="post" id="attendanceForm">
-                    <input type="hidden" name="face_image" id="faceImageInput">
+        </div>
+        {% else %}
+        <div class="mt-3 lg:mt-0">
+            <form method="post" id="attendanceForm">
+                <input type="hidden" name="face_image" id="faceImageInput">
 
-                    <div class="mb-3 text-center">
-                        <div class="position-relative d-inline-block rounded overflow-hidden bg-dark shadow-lg"
-                            style="width: 640px; height: 480px; max-width: 100%;">
-                            <video id="video" width="640" height="480" autoplay muted playsinline class="w-100 h-100"
-                                style="object-fit: cover;"></video>
-                            <canvas id="canvas" class="position-absolute top-0 start-0 w-100 h-100"></canvas>
+                <div class="mb-3 text-center">
+                    <div class="relative inline-block rounded-xl overflow-hidden bg-black shadow-xl"
+                        style="width: 640px; height: 480px; max-width: 100%;">
+                        <video id="video" width="640" height="480" autoplay muted playsinline
+                            class="w-full h-full object-cover"></video>
+                        <canvas id="canvas" class="absolute top-0 left-0 w-full h-full"></canvas>
 
-                            <div id="faceStatus"
-                                class="position-absolute bottom-0 start-0 w-100 text-center py-2 fw-bold text-white bg-danger bg-opacity-75"
-                                style="font-size: 1.2rem;">
-                                No Face Detected
-                            </div>
-                        </div>
-                        <div class="form-text mt-2">
-                            <i class="fas fa-camera me-1"></i> Face detection required to check in.
+                        <div id="faceStatus"
+                            class="absolute bottom-0 left-0 w-full text-center py-2 font-bold text-sm text-white bg-red-500/75">
+                            No Face Detected
                         </div>
                     </div>
+                    <p class="text-xs text-white/50 mt-2">
+                        <i class="fas fa-camera mr-1"></i> Face detection required to check in.
+                    </p>
+                </div>
 
-                    <button type="button" id="submitBtn" class="btn btn-light btn-lg fw-bold text-primary shadow px-5"
-                        disabled onclick="captureAndSubmit()">
-                        <i class="fas fa-check-circle me-2"></i>Verify & Check In
-                    </button>
-                </form>
+                <button type="button" id="submitBtn"
+                    class="px-6 py-2.5 rounded-xl font-bold text-sm bg-white/20 text-white/50 cursor-not-allowed transition-all"
+                    disabled onclick="captureAndSubmit()">
+                    <i class="fas fa-check-circle mr-2"></i>Verify & Check In
+                </button>
+            </form>
 
-                <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-                <script>
-                    const video = document.getElementById('video');
-                    const canvas = document.getElementById('canvas');
-                    const submitBtn = document.getElementById('submitBtn');
-                    const faceStatus = document.getElementById('faceStatus');
-                    const faceImageInput = document.getElementById('faceImageInput');
-                    const form = document.getElementById('attendanceForm');
+            <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+            <script>
+                const video = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                const submitBtn = document.getElementById('submitBtn');
+                const faceStatus = document.getElementById('faceStatus');
+                const faceImageInput = document.getElementById('faceImageInput');
+                const form = document.getElementById('attendanceForm');
 
-                    // Add hidden input for descriptor
-                    const descriptorInput = document.createElement('input');
-                    descriptorInput.type = 'hidden';
-                    descriptorInput.name = 'face_descriptor';
-                    form.appendChild(descriptorInput);
+                const descriptorInput = document.createElement('input');
+                descriptorInput.type = 'hidden';
+                descriptorInput.name = 'face_descriptor';
+                form.appendChild(descriptorInput);
 
-                    let faceDetected = false;
-                    let currentDescriptor = null;
+                let faceDetected = false;
+                let currentDescriptor = null;
 
-                    // Load models from local static folder
-                    const MODEL_URL = '/static/models';
+                const MODEL_URL = '/static/models';
 
-                    Promise.all([
-                        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-                    ]).then(startVideo).catch(err => {
-                        console.error("Failed to load models:", err);
-                        faceStatus.textContent = "AI Load Failed";
-                        faceStatus.classList.remove('bg-warning');
-                        faceStatus.classList.add('bg-danger');
-                    });
+                Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]).then(startVideo).catch(err => {
+                    console.error("Failed to load models:", err);
+                    faceStatus.textContent = "AI Load Failed";
+                    faceStatus.classList.remove('bg-amber-500/75');
+                    faceStatus.classList.add('bg-red-500/75');
+                });
 
-                    function startVideo() {
-                        navigator.mediaDevices.getUserMedia({ video: {} })
-                            .then(stream => {
-                                video.srcObject = stream;
-                            })
-                            .catch(err => {
-                                console.error("Camera Error:", err);
-                                faceStatus.textContent = "Camera Access Denied";
-                            });
-                    }
+                function startVideo() {
+                    navigator.mediaDevices.getUserMedia({ video: {} })
+                        .then(stream => { video.srcObject = stream; })
+                        .catch(err => {
+                            console.error("Camera Error:", err);
+                            faceStatus.textContent = "Camera Access Denied";
+                        });
+                }
 
-                    video.addEventListener('play', () => {
-                        const displaySize = { width: video.width, height: video.height };
-                        faceapi.matchDimensions(canvas, displaySize);
+                video.addEventListener('play', () => {
+                    const displaySize = { width: video.width, height: video.height };
+                    faceapi.matchDimensions(canvas, displaySize);
 
-                        setInterval(async () => {
-                            if (video.paused || video.ended) return;
+                    setInterval(async () => {
+                        if (video.paused || video.ended) return;
 
-                            const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                                .withFaceLandmarks()
-                                .withFaceDescriptors();
+                        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                            .withFaceLandmarks()
+                            .withFaceDescriptors();
 
-                            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                        const resizedDetections = faceapi.resizeResults(detections, displaySize);
 
-                            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-                            faceapi.draw.drawDetections(canvas, resizedDetections);
+                        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                        faceapi.draw.drawDetections(canvas, resizedDetections);
 
-                            if (detections.length === 1) {
-                                if (!faceDetected) {
-                                    faceStatus.textContent = "Face Detected";
-                                    faceStatus.classList.replace('bg-danger', 'bg-success');
-                                    faceStatus.classList.replace('bg-warning', 'bg-success');
-                                    submitBtn.disabled = false;
-                                    submitBtn.classList.replace('btn-light', 'btn-success');
-                                    submitBtn.classList.replace('text-primary', 'text-white');
-                                    faceDetected = true;
-                                }
-                                currentDescriptor = detections[0].descriptor;
-                            } else if (detections.length > 1) {
-                                faceStatus.textContent = "Multiple Faces Detected! (Only 1 Allowed)";
-                                faceStatus.classList.replace('bg-success', 'bg-danger');
-                                faceStatus.classList.replace('bg-warning', 'bg-danger');
+                        if (detections.length === 1) {
+                            if (!faceDetected) {
+                                faceStatus.textContent = "Face Detected";
+                                faceStatus.className = 'absolute bottom-0 left-0 w-full text-center py-2 font-bold text-sm text-white bg-emerald-500/75';
+                                submitBtn.disabled = false;
+                                submitBtn.className = 'px-6 py-2.5 rounded-xl font-bold text-sm bg-emerald-500 text-white shadow-lg hover:bg-emerald-600 transition-all cursor-pointer';
+                                faceDetected = true;
+                            }
+                            currentDescriptor = detections[0].descriptor;
+                        } else if (detections.length > 1) {
+                            faceStatus.textContent = "Multiple Faces Detected! (Only 1 Allowed)";
+                            faceStatus.className = 'absolute bottom-0 left-0 w-full text-center py-2 font-bold text-sm text-white bg-red-500/75';
+                            submitBtn.disabled = true;
+                            submitBtn.className = 'px-6 py-2.5 rounded-xl font-bold text-sm bg-white/20 text-white/50 cursor-not-allowed transition-all';
+                            faceDetected = false;
+                            currentDescriptor = null;
+                        } else {
+                            if (faceDetected) {
+                                faceStatus.textContent = "No Face Detected";
+                                faceStatus.className = 'absolute bottom-0 left-0 w-full text-center py-2 font-bold text-sm text-white bg-red-500/75';
                                 submitBtn.disabled = true;
-                                submitBtn.classList.replace('btn-success', 'btn-light');
-                                submitBtn.classList.replace('text-white', 'text-primary');
+                                submitBtn.className = 'px-6 py-2.5 rounded-xl font-bold text-sm bg-white/20 text-white/50 cursor-not-allowed transition-all';
                                 faceDetected = false;
                                 currentDescriptor = null;
-                            } else {
-                                if (faceDetected) {
-                                    faceStatus.textContent = "No Face Detected";
-                                    faceStatus.classList.replace('bg-success', 'bg-danger');
-                                    submitBtn.disabled = true;
-                                    submitBtn.classList.replace('btn-success', 'btn-light');
-                                    submitBtn.classList.replace('text-white', 'text-primary');
-                                    faceDetected = false;
-                                    currentDescriptor = null;
-                                }
                             }
-                        }, 200);
-                    });
-
-                    function captureAndSubmit() {
-                        if (!currentDescriptor) {
-                            alert("No face detected or multiple faces found.");
-                            return;
                         }
+                    }, 200);
+                });
 
-                        // Capture image from video
-                        const context = canvas.getContext('2d');
-                        context.drawImage(video, 0, 0, 640, 480);
-                        const dataURL = canvas.toDataURL('image/jpeg');
-                        faceImageInput.value = dataURL;
-
-                        // Set descriptor
-                        descriptorInput.value = JSON.stringify(Array.from(currentDescriptor));
-
-                        // Submit form
-                        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying Identity...';
-                        submitBtn.disabled = true;
-                        form.submit();
+                function captureAndSubmit() {
+                    if (!currentDescriptor) {
+                        alert("No face detected or multiple faces found.");
+                        return;
                     }
-                </script>
-                {% endif %}
-                {% elif existing_record %}
-                <div class="bg-white text-success px-4 py-2 rounded shadow-sm">
-                    <i class="fas fa-check-double me-2"></i>Checked In
-                </div>
-                {% endif %}
-            </div>
+                    const context = canvas.getContext('2d');
+                    context.drawImage(video, 0, 0, 640, 480);
+                    const dataURL = canvas.toDataURL('image/jpeg');
+                    faceImageInput.value = dataURL;
+                    descriptorInput.value = JSON.stringify(Array.from(currentDescriptor));
+                    submitBtn.innerHTML = '<span class="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span> Verifying Identity...';
+                    submitBtn.disabled = true;
+                    form.submit();
+                }
+            </script>
         </div>
+        {% endif %}
+        {% elif existing_record %}
+        <div class="mt-3 lg:mt-0 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 text-sm font-bold">
+            <i class="fas fa-check-double mr-2"></i>Checked In
+        </div>
+        {% endif %}
     </div>
-
-    {% if is_instructor %}
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-white py-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 fw-bold">Student List</h5>
-                <div class="input-group w-auto">
-                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-search"></i></span>
-                    <input type="text" class="form-control border-start-0" placeholder="Search student..."
-                        id="studentSearch">
-                </div>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th class="ps-4">Student Name</th>
-                            <th>ID</th>
-                            <th>Status</th>
-                            <th class="text-end pe-4">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="studentTableBody">
-                        {% for student in students %}
-                        {% set record = attendance_dict.get(student['id']) %}
-                        <tr>
-                            <td class="ps-4 fw-medium">{{ student['name'] }}</td>
-                            <td class="text-muted small">{{ student['student_id'] }}</td>
-                            <td>
-                                {% if record %}
-                                {% if record['status'] == 'present' %}
-                                <span class="badge bg-success rounded-pill">Present</span>
-                                <small class="text-muted d-block mt-1" style="font-size: 0.7rem">
-                                    {{ record['marked_at'].split('T')[1][:5] }}
-                                </small>
-                                {% else %}
-                                <span class="badge bg-danger rounded-pill">Absent</span>
-                                {% endif %}
-                                {% else %}
-                                <span class="badge bg-secondary rounded-pill">Not Marked</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end pe-4">
-                                <div class="btn-group btn-group-sm">
-                                    <button
-                                        onclick="markAttendance({{ session_info['id'] }}, {{ student['id'] }}, 'present')"
-                                        class="btn btn-outline-success {% if record and record['status'] == 'present' %}active{% endif %}">
-                                        Present
-                                    </button>
-                                    <button
-                                        onclick="markAttendance({{ session_info['id'] }}, {{ student['id'] }}, 'absent')"
-                                        class="btn btn-outline-danger {% if record and record['status'] == 'absent' %}active{% endif %}">
-                                        Absent
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    {% else %}
-    <!-- Student View of verification -->
-    {% if existing_record %}
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-4">
-            <h5>Assuming Record Verified</h5>
-            <div class="bg-light p-3 rounded">
-                <div class="row">
-                    <div class="col-md-3 text-muted">Marked At:</div>
-                    <div class="col-md-9 fw-bold">{{ existing_record['marked_at'].replace('T', ' ')[:19] }}</div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-md-3 text-muted">Transaction ID:</div>
-                    <div class="col-md-9 text-break">
-                        {% if existing_record['tx_id'] and existing_record['tx_id'].startswith('MOCK_') %}
-                        <span class="text-muted" title="Transaction simulated (off-chain)">
-                            {{ existing_record['tx_id'] }} <i
-                                class="fas fa-exclamation-circle text-warning small ms-1"></i>
-                        </span>
-                        <div class="small text-danger mt-1">
-                            <i class="fas fa-info-circle"></i> Off-chain verification (Blockchain simulation)
-                        </div>
-                        {% else %}
-                        <a href="https://lora.algokit.io/testnet/transaction/{{ existing_record['tx_id'] }}"
-                            target="_blank">
-                            {{ existing_record['tx_id'] }} <i class="fas fa-external-link-alt small"></i>
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    {% endif %}
 </div>
+
+{% if is_instructor %}
+<div class="glass-card overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+        <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200">Student List</h5>
+        <div class="relative">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" class="input-field py-1.5 pl-9 pr-3 text-xs w-52" placeholder="Search student..."
+                id="studentSearch">
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-slate-200 dark:border-[#2B2F3A] bg-slate-50/50 dark:bg-[#1C1F2B]/60">
+                    <th
+                        class="text-left ps-5 py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                        Student Name</th>
+                    <th
+                        class="text-left py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                        ID</th>
+                    <th
+                        class="text-left py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                        Status</th>
+                    <th
+                        class="text-right pe-5 py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentTableBody">
+                {% for student in students %}
+                {% set record = attendance_dict.get(student['id']) %}
+                <tr
+                    class="border-b border-slate-100 dark:border-[#2B2F3A]/60 hover:bg-slate-50/50 dark:hover:bg-[#1C1F2B]/60 transition-colors">
+                    <td class="ps-5 py-3 font-medium text-slate-800 dark:text-white text-sm">{{ student['name'] }}</td>
+                    <td class="py-3 text-xs text-slate-400 dark:text-gray-400">{{ student['student_id'] }}</td>
+                    <td class="py-3">
+                        {% if record %}
+                        {% if record['status'] == 'present' %}
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-800/30 dark:text-emerald-300">Present</span>
+                        <small class="text-[10px] text-slate-400 dark:text-gray-400 block mt-0.5">
+                            {{ record['marked_at'].split('T')[1][:5] }}
+                        </small>
+                        {% else %}
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600 dark:bg-red-800/30 dark:text-red-300">Absent</span>
+                        {% endif %}
+                        {% else %}
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-[#2B2F3A]/60 dark:text-gray-400">Not
+                            Marked</span>
+                        {% endif %}
+                    </td>
+                    <td class="pe-5 py-3 text-right">
+                        <div
+                            class="inline-flex rounded-lg overflow-hidden border border-slate-200 dark:border-white/10">
+                            <button onclick="markAttendance({{ session_info['id'] }}, {{ student['id'] }}, 'present')"
+                                class="px-3 py-1 text-xs font-medium transition-colors {{ 'bg-emerald-500 text-white' if record and record['status'] == 'present' else 'bg-transparent text-emerald-500 hover:bg-emerald-500/10' }}">
+                                Present
+                            </button>
+                            <button onclick="markAttendance({{ session_info['id'] }}, {{ student['id'] }}, 'absent')"
+                                class="px-3 py-1 text-xs font-medium transition-colors border-l border-slate-200 dark:border-white/10 {{ 'bg-red-500 text-white' if record and record['status'] == 'absent' else 'bg-transparent text-red-500 hover:bg-red-500/10' }}">
+                                Absent
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<!-- Student View of verification -->
+{% if existing_record %}
+<div class="glass-card p-5">
+    <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200 mb-3">Attendance Record Verified</h5>
+    <div class="rounded-xl bg-slate-50 dark:bg-[#1C1F2B]/40 p-4 space-y-2">
+        <div class="grid grid-cols-3">
+            <span class="text-xs text-slate-400 dark:text-gray-400">Marked At:</span>
+            <span class="col-span-2 text-xs font-bold text-slate-700 dark:text-gray-200">{{
+                existing_record['marked_at'].replace('T', ' ')[:19] }}</span>
+        </div>
+        <div class="grid grid-cols-3">
+            <span class="text-xs text-slate-400 dark:text-gray-400">Transaction ID:</span>
+            <div class="col-span-2 break-all">
+                {% if existing_record['tx_id'] and existing_record['tx_id'].startswith('MOCK_') %}
+                <span class="text-xs text-slate-400 dark:text-gray-400" title="Transaction simulated (off-chain)">
+                    {{ existing_record['tx_id'] }} <i
+                        class="fas fa-exclamation-circle text-amber-400 text-[10px] ml-1"></i>
+                </span>
+                <div class="text-[10px] text-red-400 mt-0.5">
+                    <i class="fas fa-info-circle"></i> Off-chain verification (Blockchain simulation)
+                </div>
+                {% else %}
+                <a href="https://lora.algokit.io/testnet/transaction/{{ existing_record['tx_id'] }}" target="_blank"
+                    class="text-xs text-accent hover:underline no-underline">
+                    {{ existing_record['tx_id'] }} <i class="fas fa-external-link-alt text-[10px] ml-1"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
 </div>
 
 {% block extra_js %}
@@ -291,14 +286,12 @@
         console.log(`Marking attendance: Session ${sessionId}, User ${userId}, Status ${status}`);
         const btn = event.target.closest('button');
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        btn.innerHTML = '<span class="inline-block w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin mr-1"></span> Processing...';
         btn.disabled = true;
 
         fetch(`/attendance/${sessionId}/${userId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: status })
         })
             .then(response => {

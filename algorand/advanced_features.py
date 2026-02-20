@@ -185,10 +185,12 @@ def build_bank_deposit_txns(sender: str, app_id: int, amount_algo: float) -> dic
     app_addr = get_application_address(app_id)
 
     pay_txn = PaymentTxn(sender, params, app_addr, amount_microalgo)
+    app_args = [bytes.fromhex("b8843568")]  # selector: deposit()uint64
+
     app_txn = ApplicationCallTxn(
         sender, params, app_id,
         transaction.OnComplete.NoOpOC,
-        app_args=["deposit"],
+        app_args=app_args,
     )
 
     transaction.assign_group_id([pay_txn, app_txn])
@@ -204,10 +206,28 @@ def build_bank_withdraw_txn(sender: str, app_id: int, amount_algo: float) -> dic
     params.fee = 2000  # cover inner-txn fee
 
     amount_microalgo = int(float(amount_algo) * 1_000_000)
+    
+    # Selector: withdraw(address,uint64)void -> 13ff1ce9
+    # Args: [selector, receiver_bytes (32), amount_uint64 (8)]
+    # Note: receiver argument is the address receiving funds, passed as bytes
+    # But in the contract it's an abi.Address argument.
+    
+    # We will assume the sender wants to withdraw to themselves for simplicity, 
+    # or expose a 'receiver' param. The current signature only takes 'sender'.
+    # If the UI implies withdrawing TO the sender, we use sender address.
+    receiver_bytes = encoding.decode_address(sender)
+    amount_bytes = amount_microalgo.to_bytes(8, 'big')
+    
+    app_args = [
+        bytes.fromhex("13ff1ce9"),
+        receiver_bytes,
+        amount_bytes
+    ]
+
     txn = ApplicationCallTxn(
         sender, params, app_id,
         transaction.OnComplete.NoOpOC,
-        app_args=["withdraw", amount_microalgo],
+        app_args=app_args,
     )
     return {"txn_b64": _txn_to_b64(txn)}
 

@@ -1,176 +1,126 @@
 {% extends "base.html" %}
 
-{% block title %}Login - CampaFi{% endblock %}
-
-{% block extra_css %}
-<style>
-    body {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-        min-height: 100vh;
-    }
-
-    .login-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: calc(100vh - 100px);
-    }
-
-    .wallet-login-card {
-        max-width: 480px;
-        width: 100%;
-        border-radius: 24px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(30, 41, 59, 0.95);
-        backdrop-filter: blur(20px);
-    }
-
-    .wallet-login-card .card-body {
-        padding: 3rem;
-    }
-
-    .algo-glow {
-        filter: drop-shadow(0 0 20px rgba(0, 212, 170, 0.3));
-    }
-
-    .btn-pera-login {
-        background: linear-gradient(135deg, #FFDE59 0%, #FFB800 100%);
-        color: #1a1a2e;
-        border: none;
-        font-weight: 700;
-        font-size: 1.1rem;
-        padding: 14px 28px;
-        border-radius: 16px;
-        transition: all 0.3s ease;
-        letter-spacing: 0.5px;
-    }
-
-    .btn-pera-login:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(255, 222, 89, 0.4);
-        color: #1a1a2e;
-    }
-
-    .btn-pera-login:disabled {
-        opacity: 0.7;
-        cursor: wait;
-    }
-
-    .feature-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.78rem;
-        font-weight: 500;
-        background: rgba(255, 255, 255, 0.06);
-        color: rgba(255, 255, 255, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .security-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-
-    .security-list li {
-        padding: 6px 0;
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .security-list li i {
-        color: #00D4AA;
-        font-size: 0.75rem;
-    }
-
-    .step-indicator {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-    }
-
-    .step-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.15);
-        transition: all 0.3s;
-    }
-
-    .step-dot.active {
-        background: #00D4AA;
-        box-shadow: 0 0 8px rgba(0, 212, 170, 0.5);
-    }
-</style>
-{% endblock %}
+{% block title %}Login - CollegePay{% endblock %}
 
 {% block content %}
-<div class="login-container">
-    <div class="card wallet-login-card shadow-lg border-0 fade-in">
-        <div class="card-body text-center">
-            <!-- Logo & Title -->
-            <img src="https://cryptologos.cc/logos/algorand-algo-logo.png" alt="Algorand" height="72"
-                class="mb-3 algo-glow">
-            <h2 class="fw-bold text-white mb-1">CampaFi</h2>
-            <p class="text-muted mb-4">Web3 Campus Identity — Powered by Algorand</p>
+<div class="min-h-[calc(100vh-6rem)] flex items-center justify-center -mt-8">
+    <div
+        class="w-full max-w-5xl mx-auto grid lg:grid-cols-2 gap-0 rounded-3xl overflow-hidden glass-card animate-fade-in">
 
-            <!-- Step indicators -->
-            <div class="step-indicator" id="login-steps">
-                <div class="step-dot active" id="step-1"></div>
-                <div class="step-dot" id="step-2"></div>
-                <div class="step-dot" id="step-3"></div>
+        <!-- Left: Login Form -->
+        <div class="p-8 sm:p-12 flex flex-col justify-center">
+            <!-- Logo & Title -->
+            <div class="mb-8">
+                <div class="flex items-center gap-3 mb-6">
+                    <img src="https://cryptologos.cc/logos/algorand-algo-logo.png" alt="Algorand"
+                        class="h-10 w-10 drop-shadow-[0_0_12px_rgba(124,92,252,0.3)]">
+                    <span class="text-xl font-bold text-accent">CollegePay</span>
+                </div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-2">Welcome</h1>
+                <p class="text-slate-500 dark:text-gray-400">Web3 Campus Identity — Powered by Algorand</p>
+            </div>
+
+            <!-- Step Indicators -->
+            <div class="flex gap-2 mb-8" id="login-steps">
+                <div class="w-2 h-2 rounded-full bg-accent shadow-[0_0_8px_rgba(124,92,252,0.5)]" id="step-1"></div>
+                <div class="w-2 h-2 rounded-full bg-white/10 dark:bg-white/15" id="step-2"></div>
+                <div class="w-2 h-2 rounded-full bg-white/10 dark:bg-white/15" id="step-3"></div>
             </div>
 
             <!-- Login Button -->
-            <div class="d-grid mb-4">
-                <button id="wallet-login-btn" class="btn btn-pera-login" onclick="walletLogin()">
-                    <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera"
-                        style="width:24px;height:24px;margin-right:10px">
-                    Login with Pera Wallet
-                </button>
-            </div>
+            <button id="wallet-login-btn"
+                class="w-full btn-pera rounded-2xl py-4 px-6 text-base font-bold flex items-center justify-center gap-3 mb-6"
+                onclick="walletLogin()">
+                <img src="https://explorer.perawallet.app/favicon.ico" alt="Pera" class="w-6 h-6">
+                Login with Pera Wallet
+            </button>
 
             <!-- Status Messages -->
-            <div id="wallet-login-status" class="alert d-none" role="alert"></div>
+            <div id="wallet-login-status" class="alert d-none rounded-xl" role="alert"></div>
 
             <!-- How it works -->
-            <div class="text-start mt-4 px-2">
-                <p class="text-muted small fw-bold text-uppercase mb-2">
-                    <i class="fas fa-shield-alt me-1 text-info"></i> How it works
+            <div class="mt-6 mb-6">
+                <p
+                    class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-gray-400 mb-3 flex items-center gap-2">
+                    <i class="fas fa-shield-alt text-cyan-400"></i>How it works
                 </p>
-                <ul class="security-list">
-                    <li><i class="fas fa-check-circle"></i> Connect your Pera Wallet (TestNet)</li>
-                    <li><i class="fas fa-check-circle"></i> Sign a challenge message to prove ownership</li>
-                    <li><i class="fas fa-check-circle"></i> No passwords, no mnemonics, no data stored</li>
-                    <li><i class="fas fa-check-circle"></i> First login auto-creates your account</li>
+                <ul class="space-y-2.5">
+                    <li class="flex items-center gap-3 text-sm text-slate-500 dark:text-gray-400">
+                        <i class="fas fa-check-circle text-emerald-400 text-xs"></i>Connect your Pera Wallet (TestNet)
+                    </li>
+                    <li class="flex items-center gap-3 text-sm text-slate-500 dark:text-gray-400">
+                        <i class="fas fa-check-circle text-emerald-400 text-xs"></i>Sign a challenge message to prove
+                        ownership
+                    </li>
+                    <li class="flex items-center gap-3 text-sm text-slate-500 dark:text-gray-400">
+                        <i class="fas fa-check-circle text-emerald-400 text-xs"></i>No passwords, no mnemonics, no data
+                        stored
+                    </li>
+                    <li class="flex items-center gap-3 text-sm text-slate-500 dark:text-gray-400">
+                        <i class="fas fa-check-circle text-emerald-400 text-xs"></i>First login auto-creates your
+                        account
+                    </li>
                 </ul>
             </div>
 
             <!-- Feature Badges -->
-            <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
-                <span class="feature-badge"><i class="fas fa-lock text-success"></i> Zero-Knowledge</span>
-                <span class="feature-badge"><i class="fas fa-wallet text-warning"></i> Wallet-Native</span>
-                <span class="feature-badge"><i class="fas fa-bolt text-info"></i> Instant Login</span>
+            <div class="flex flex-wrap gap-2 mb-6">
+                <span
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 dark:bg-[#1C1F2B]/80 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-[#2B2F3A]">
+                    <i class="fas fa-lock text-emerald-400"></i>Zero-Knowledge
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 dark:bg-[#1C1F2B]/80 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-[#2B2F3A]">
+                    <i class="fas fa-wallet text-amber-400"></i>Wallet-Native
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 dark:bg-[#1C1F2B]/80 text-slate-500 dark:text-gray-400 border border-slate-200 dark:border-[#2B2F3A]">
+                    <i class="fas fa-bolt text-cyan-400"></i>Instant Login
+                </span>
             </div>
 
             <!-- TestNet Note -->
-            <div class="mt-4 pt-3 border-top border-secondary">
-                <p class="text-muted small mb-1">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Make sure Pera Wallet is set to <strong class="text-warning">TestNet</strong>
+            <div class="pt-4 border-t border-slate-200 dark:border-[#2B2F3A]">
+                <p class="text-xs text-slate-400 dark:text-gray-400 mb-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Make sure Pera Wallet is set to <strong class="text-amber-400">TestNet</strong>
                 </p>
                 <a href="https://dispenser.testnet.aws.algorand.com/" target="_blank"
-                    class="text-muted small text-decoration-none">
-                    <i class="fas fa-faucet me-1"></i> Need TestNet ALGO? Get free tokens here →
+                    class="text-xs text-slate-400 dark:text-gray-400 hover:text-accent transition-colors">
+                    <i class="fas fa-faucet mr-1"></i>Need TestNet ALGO? Get free tokens here →
                 </a>
+            </div>
+        </div>
+
+        <!-- Right: Abstract Hero -->
+        <div class="hidden lg:block relative overflow-hidden">
+            <div class="absolute inset-0"
+                style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 25%, #a855f7 50%, #ec4899 75%, #f43f5e 100%);">
+            </div>
+            <!-- Animated decorative circles -->
+            <div class="absolute inset-0 overflow-hidden">
+                <div class="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/10 blur-sm"></div>
+                <div class="absolute top-1/3 -left-10 w-60 h-60 rounded-full bg-white/[0.06]"></div>
+                <div class="absolute -bottom-10 right-1/4 w-40 h-40 rounded-full bg-white/[0.08]"></div>
+                <div class="absolute top-1/2 right-1/3 w-32 h-32 rounded-full bg-pink-400/20 blur-lg"></div>
+            </div>
+            <!-- Branding overlay -->
+            <div class="absolute inset-0 flex items-end p-10">
+                <div
+                    class="glass-card p-6 bg-white/10 dark:bg-white/10 border-white/20 backdrop-blur-xl rounded-2xl max-w-xs">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                            <i class="fas fa-shield-alt text-white"></i>
+                        </div>
+                        <div>
+                            <p class="text-white font-semibold text-sm">CampaFi</p>
+                            <p class="text-white/60 text-xs">Blockchain Campus</p>
+                        </div>
+                    </div>
+                    <p class="text-white/80 text-sm leading-relaxed">
+                        Secure, transparent campus services powered by Algorand blockchain technology.
+                    </p>
+                </div>
             </div>
         </div>
     </div>

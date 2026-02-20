@@ -1,0 +1,91 @@
+{
+  "hints": {
+    "deposit()uint64": {
+      "call_config": {
+        "no_op": "CALL"
+      }
+    },
+    "withdraw(address,uint64)void": {
+      "call_config": {
+        "no_op": "CALL"
+      }
+    },
+    "delete()void": {
+      "call_config": {
+        "delete_application": "CALL"
+      }
+    }
+  },
+  "source": {
+    "approval": "I3ByYWdtYSB2ZXJzaW9uIDgKaW50Y2Jsb2NrIDAgMQpieXRlY2Jsb2NrIDB4NzQ2Zjc0NjE2YzVmNjQ2NTcwNmY3MzY5NzQ3Mwp0eG4gTnVtQXBwQXJncwppbnRjXzAgLy8gMAo9PQpibnogbWFpbl9sOAp0eG5hIEFwcGxpY2F0aW9uQXJncyAwCnB1c2hieXRlcyAweGI4ODQzNTY4IC8vICJkZXBvc2l0KCl1aW50NjQiCj09CmJueiBtYWluX2w3CnR4bmEgQXBwbGljYXRpb25BcmdzIDAKcHVzaGJ5dGVzIDB4MTNmZjFjZTkgLy8gIndpdGhkcmF3KGFkZHJlc3MsdWludDY0KXZvaWQiCj09CmJueiBtYWluX2w2CnR4bmEgQXBwbGljYXRpb25BcmdzIDAKcHVzaGJ5dGVzIDB4MjQzNzhkM2MgLy8gImRlbGV0ZSgpdm9pZCIKPT0KYm56IG1haW5fbDUKZXJyCm1haW5fbDU6CnR4biBPbkNvbXBsZXRpb24KcHVzaGludCA1IC8vIERlbGV0ZUFwcGxpY2F0aW9uCj09CnR4biBBcHBsaWNhdGlvbklECmludGNfMCAvLyAwCiE9CiYmCmFzc2VydApjYWxsc3ViIGRlbGV0ZWNhc3Rlcl81CmludGNfMSAvLyAxCnJldHVybgptYWluX2w2Ogp0eG4gT25Db21wbGV0aW9uCmludGNfMCAvLyBOb09wCj09CnR4biBBcHBsaWNhdGlvbklECmludGNfMCAvLyAwCiE9CiYmCmFzc2VydApjYWxsc3ViIHdpdGhkcmF3Y2FzdGVyXzQKaW50Y18xIC8vIDEKcmV0dXJuCm1haW5fbDc6CnR4biBPbkNvbXBsZXRpb24KaW50Y18wIC8vIE5vT3AKPT0KdHhuIEFwcGxpY2F0aW9uSUQKaW50Y18wIC8vIDAKIT0KJiYKYXNzZXJ0CmNhbGxzdWIgZGVwb3NpdGNhc3Rlcl8zCmludGNfMSAvLyAxCnJldHVybgptYWluX2w4Ogp0eG4gT25Db21wbGV0aW9uCmludGNfMCAvLyBOb09wCj09CmJueiBtYWluX2wxMAplcnIKbWFpbl9sMTA6CnR4biBBcHBsaWNhdGlvbklECmludGNfMCAvLyAwCj09CmFzc2VydAppbnRjXzEgLy8gMQpyZXR1cm4KCi8vIGRlcG9zaXQKZGVwb3NpdF8wOgpwcm90byAwIDEKaW50Y18wIC8vIDAKYnl0ZWNfMCAvLyAidG90YWxfZGVwb3NpdHMiCmJ5dGVjXzAgLy8gInRvdGFsX2RlcG9zaXRzIgphcHBfZ2xvYmFsX2dldApnbG9iYWwgR3JvdXBTaXplCisKYXBwX2dsb2JhbF9wdXQKYnl0ZWNfMCAvLyAidG90YWxfZGVwb3NpdHMiCmFwcF9nbG9iYWxfZ2V0CmZyYW1lX2J1cnkgMApyZXRzdWIKCi8vIHdpdGhkcmF3CndpdGhkcmF3XzE6CnByb3RvIDIgMAp0eG4gU2VuZGVyCmdsb2JhbCBDcmVhdG9yQWRkcmVzcwo9PQovLyB1bmF1dGhvcml6ZWQKYXNzZXJ0Cml0eG5fYmVnaW4KaW50Y18xIC8vIHBheQppdHhuX2ZpZWxkIFR5cGVFbnVtCmZyYW1lX2RpZyAtMgppdHhuX2ZpZWxkIFJlY2VpdmVyCmZyYW1lX2RpZyAtMQppdHhuX2ZpZWxkIEFtb3VudAppbnRjXzAgLy8gMAppdHhuX2ZpZWxkIEZlZQppdHhuX3N1Ym1pdAppbnRjXzEgLy8gMQpyZXR1cm4KCi8vIGRlbGV0ZQpkZWxldGVfMjoKcHJvdG8gMCAwCnR4biBTZW5kZXIKZ2xvYmFsIENyZWF0b3JBZGRyZXNzCj09Ci8vIHVuYXV0aG9yaXplZAphc3NlcnQKaW50Y18xIC8vIDEKcmV0dXJuCgovLyBkZXBvc2l0X2Nhc3RlcgpkZXBvc2l0Y2FzdGVyXzM6CnByb3RvIDAgMAppbnRjXzAgLy8gMApjYWxsc3ViIGRlcG9zaXRfMApmcmFtZV9idXJ5IDAKcHVzaGJ5dGVzIDB4MTUxZjdjNzUgLy8gMHgxNTFmN2M3NQpmcmFtZV9kaWcgMAppdG9iCmNvbmNhdApsb2cKcmV0c3ViCgovLyB3aXRoZHJhd19jYXN0ZXIKd2l0aGRyYXdjYXN0ZXJfNDoKcHJvdG8gMCAwCnB1c2hieXRlcyAweCAvLyAiIgppbnRjXzAgLy8gMAp0eG5hIEFwcGxpY2F0aW9uQXJncyAxCmZyYW1lX2J1cnkgMAp0eG5hIEFwcGxpY2F0aW9uQXJncyAyCmJ0b2kKZnJhbWVfYnVyeSAxCmZyYW1lX2RpZyAwCmZyYW1lX2RpZyAxCmNhbGxzdWIgd2l0aGRyYXdfMQpyZXRzdWIKCi8vIGRlbGV0ZV9jYXN0ZXIKZGVsZXRlY2FzdGVyXzU6CnByb3RvIDAgMApjYWxsc3ViIGRlbGV0ZV8yCnJldHN1Yg==",
+    "clear": "I3ByYWdtYSB2ZXJzaW9uIDgKaW50Y2Jsb2NrIDEKY2FsbHN1YiBjbGVhcnN0YXRlXzAKaW50Y18wIC8vIDEKcmV0dXJuCgovLyBjbGVhcl9zdGF0ZQpjbGVhcnN0YXRlXzA6CnByb3RvIDAgMAppbnRjXzAgLy8gMQpyZXR1cm4="
+  },
+  "state": {
+    "global": {
+      "num_byte_slices": 0,
+      "num_uints": 1
+    },
+    "local": {
+      "num_byte_slices": 0,
+      "num_uints": 0
+    }
+  },
+  "schema": {
+    "global": {
+      "declared": {
+        "total_deposits": {
+          "type": "uint64",
+          "key": "total_deposits",
+          "descr": "Running total of deposits in microAlgos"
+        }
+      },
+      "reserved": {}
+    },
+    "local": {
+      "declared": {},
+      "reserved": {}
+    }
+  },
+  "contract": {
+    "name": "CampusBank",
+    "methods": [
+      {
+        "name": "deposit",
+        "args": [],
+        "returns": {
+          "type": "uint64"
+        },
+        "desc": "Accept an ALGO deposit.\nThe caller must group a PaymentTxn (to the app address) immediately before this application call.  The contract simply records success; the payment itself funds the application account.\nReturns the current total deposits (informational)."
+      },
+      {
+        "name": "withdraw",
+        "args": [
+          {
+            "type": "address",
+            "name": "receiver"
+          },
+          {
+            "type": "uint64",
+            "name": "amount"
+          }
+        ],
+        "returns": {
+          "type": "void"
+        },
+        "desc": "Withdraw ALGO from the contract \u2013 creator only.\nSends *amount* microAlgos to *receiver* via an inner transaction."
+      },
+      {
+        "name": "delete",
+        "args": [],
+        "returns": {
+          "type": "void"
+        },
+        "desc": "Allow only the creator to delete the application."
+      }
+    ],
+    "networks": {}
+  },
+  "bare_call_config": {
+    "no_op": "CREATE"
+  }
+}

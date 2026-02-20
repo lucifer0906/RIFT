@@ -1,101 +1,103 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Results: {{ form['title'] }} - CampaFi{% endblock %}
+{% block title %}Feedback Results - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row fade-in">
-    <div class="col-12 mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Results</li>
-            </ol>
-        </nav>
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <h2 class="fw-bold mb-1">{{ form['title'] }}</h2>
-                <div class="text-muted">
-                    <span class="badg bg-secondary text-white rounded-pill px-2 py-1 small me-2">Closed</span>
-                    Results Overview
-                </div>
+<div class="animate-fade-in max-w-4xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">Feedback Results</h1>
+        <p class="text-slate-500 dark:text-gray-400">Analysis of campus feedback gathered via CollegePay</p>
+    </div>
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-4">
+        <a href="{{ url_for('dashboard') }}" class="text-accent hover:underline">Dashboard</a>
+        <span class="text-slate-400 mx-2">/</span>
+        <span class="text-slate-500 dark:text-gray-400">Results</span>
+    </nav>
+
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-1">{{ form['title'] }}</h2>
+            <div class="flex items-center gap-2 text-sm text-slate-400 dark:text-gray-400">
+                <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-gray-300">Closed</span>
+                Results Overview
             </div>
-            {% if form['is_active'] %}
-            <button onclick="closeForm({{ form['id'] }})" class="btn btn-danger btn-sm">
-                <i class="fas fa-lock me-1"></i> Close Form
-            </button>
-            {% endif %}
         </div>
+        {% if form['is_active'] %}
+        <button onclick="closeForm({{ form['id'] }})"
+            class="mt-3 sm:mt-0 px-4 py-2 rounded-xl text-xs font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all">
+            <i class="fas fa-lock mr-1"></i> Close Form
+        </button>
+        {% endif %}
     </div>
 
     <!-- Stats Cards -->
-    <div class="col-md-6 mb-4">
-        <div class="card shadow-sm border-0 h-100 bg-primary text-white">
-            <div class="card-body text-center p-4">
-                <h5 class="text-uppercase opacity-75 small fw-bold">Total Verified Responses</h5>
-                <h1 class="display-3 fw-bold">{{ response_count }}</h1>
-                <i class="fas fa-user-check opacity-50 fa-2x"></i>
-            </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        <div class="rounded-2xl p-6 text-center text-white relative overflow-hidden"
+            style="background: linear-gradient(135deg, #667eea, #764ba2);">
+            <h5 class="text-xs uppercase tracking-widest opacity-60 font-bold mb-2">Total Verified Responses</h5>
+            <h1 class="text-5xl font-bold mb-2">{{ response_count }}</h1>
+            <i class="fas fa-user-check text-2xl opacity-30"></i>
         </div>
-    </div>
-    <div class="col-md-6 mb-4">
-        <div class="card shadow-sm border-0 h-100 bg-secondary text-white">
-            <div class="card-body text-center p-4">
-                <h5 class="text-uppercase opacity-75 small fw-bold">Anonymous Responses</h5>
-                <h1 class="display-3 fw-bold">{{ anon_response_count }}</h1>
-                <i class="fas fa-user-secret opacity-50 fa-2x"></i>
-            </div>
+        <div class="rounded-2xl p-6 text-center text-white relative overflow-hidden"
+            style="background: linear-gradient(135deg, #4a5568, #2d3748);">
+            <h5 class="text-xs uppercase tracking-widest opacity-60 font-bold mb-2">Anonymous Responses</h5>
+            <h1 class="text-5xl font-bold mb-2">{{ anon_response_count }}</h1>
+            <i class="fas fa-user-secret text-2xl opacity-30"></i>
         </div>
     </div>
 
     <!-- Questions Results -->
-    <div class="col-12">
+    <div class="space-y-5">
         {% for q_id, data in results.items() %}
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white py-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">{{ loop.index }}. {{ data['question'] }}</h5>
-                    {% if data['average'] is defined %}
-                    <div>
-                        <span class="badge bg-{{ data['sentiment_color'] }} me-2">
-                            {{ data['sentiment'] }}
-                        </span>
-                        <span class="fw-bold text-muted">Avg: {{ data['average'] }} / 5</span>
-                    </div>
-                    {% endif %}
+        <div class="glass-card overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A] flex items-center justify-between">
+                <h5 class="font-bold text-sm text-slate-800 dark:text-white">{{ loop.index }}. {{ data['question'] }}
+                </h5>
+                {% if data['average'] is defined %}
+                <div class="flex items-center gap-2">
+                    <span
+                        class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-{{ data['sentiment_color'] }}-500/10 text-{{ data['sentiment_color'] }}-400">
+                        {{ data['sentiment'] }}
+                    </span>
+                    <span class="text-xs font-bold text-slate-500 dark:text-gray-400">Avg: {{ data['average'] }} /
+                        5</span>
                 </div>
+                {% endif %}
             </div>
-            <div class="card-body">
+            <div class="p-5">
                 {% if data['responses'] %}
-                <ul class="list-group list-group-flush">
+                <div class="space-y-2">
                     {% for resp in data['responses'] %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span>{{ resp['response_text'] }}</span>
+                    <div
+                        class="flex items-start justify-between py-2.5 px-3 rounded-lg hover:bg-slate-50/50 dark:hover:bg-[#1C1F2B]/60 transition-colors">
+                        <div class="flex-1">
+                            <span class="text-sm text-slate-700 dark:text-gray-200">{{ resp['response_text'] }}</span>
                             {% if resp['comments'] %}
-                            <div class="mt-2 p-2 bg-light rounded border-start border-primary border-4 small">
-                                <i class="fas fa-comment-dots text-muted me-1"></i>
+                            <div
+                                class="mt-1.5 p-2 rounded-lg bg-slate-50/80 dark:bg-[#1C1F2B]/40 border-l-2 border-accent text-xs text-slate-500 dark:text-gray-400">
+                                <i class="fas fa-comment-dots mr-1"></i>
                                 <em>{{ resp['comments'] }}</em>
                             </div>
                             {% endif %}
                             {% if resp['tx_id'] %}
-                            <br>
-                            <small class="text-muted" style="font-size: 0.75rem;">
-                                <i class="fas fa-link me-1"></i>
-                                <a href="https://lora.algokit.io/testnet/transaction/{{ resp['tx_id'] }}"
-                                    target="_blank" class="text-decoration-none text-muted">
-                                    Tx: {{ resp['tx_id'][:8] }}...
-                                </a>
-                            </small>
+                            <a href="https://lora.algokit.io/testnet/transaction/{{ resp['tx_id'] }}" target="_blank"
+                                class="inline-flex items-center mt-1 text-[10px] text-slate-400 hover:text-accent no-underline">
+                                <i class="fas fa-link mr-1"></i>Tx: {{ resp['tx_id'][:8] }}...
+                            </a>
                             {% endif %}
                         </div>
                         {% if resp['count'] is defined %}
-                        <span class="badge bg-light text-dark border rounded-pill">{{ resp['count'] }} users</span>
+                        <span
+                            class="ml-3 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-[#2B2F3A]/60 text-slate-500 dark:text-gray-400">{{
+                            resp['count'] }} users</span>
                         {% endif %}
-                    </li>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
                 {% else %}
-                <p class="text-muted text-center py-3 mb-0">No responses yet.</p>
+                <p class="text-center text-sm text-slate-400 dark:text-gray-400 py-4">No responses yet.</p>
                 {% endif %}
             </div>
         </div>
@@ -106,7 +108,7 @@
 {% block extra_js %}
 <script>
     function closeForm(formId) {
-        if (confirm('Are you sure you want to close this form? access will be disabled.')) {
+        if (confirm('Are you sure you want to close this form? Access will be disabled.')) {
             fetch(`/feedback/${formId}/close`, { method: 'PUT' })
                 .then(res => res.json())
                 .then(data => {

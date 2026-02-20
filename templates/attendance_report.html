@@ -1,78 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}Report: {{ course_code }} - CampaFi{% endblock %}
+{% block title %}Attendance Report - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row fade-in">
-    <div class="col-12 mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('attendance_list') }}">Attendance</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Report</li>
-            </ol>
-        </nav>
-        <h2 class="fw-bold">Attendance Report: <span class="text-primary">{{ course_code }}</span></h2>
+<div class="animate-fade-in max-w-5xl mx-auto">
+    <div class="mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">Attendance Report</h1>
+            <p class="text-slate-500 dark:text-gray-400">Detailed attendance analytics for CollegePay courses</p>
+        </div>
     </div>
 
-    <div class="col-md-4 mb-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body">
-                <h5 class="card-title text-muted text-uppercase small fw-bold">Session Overview</h5>
-                <h1 class="display-4 fw-bold mb-0 text-center py-4">{{ sessions|length }}</h1>
-                <p class="text-muted text-center">Total Sessions Conducted</p>
-                <div class="d-grid">
-                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#sessionList">
-                        Show Sessions <i class="fas fa-chevron-down ms-1"></i>
-                    </button>
-                    <div class="collapse mt-2" id="sessionList">
-                        <ul class="list-group list-group-flush small">
-                            {% for session in sessions %}
-                            <li class="list-group-item bg-transparent d-flex justify-content-between">
-                                <span>{{ session['session_date'] }}</span>
-                                <span class="text-muted">{{ session['session_time'] }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
+    <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-6">
+        Attendance Report: <span class="text-accent">{{ course_code }}</span>
+    </h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <!-- Session Overview -->
+        <div class="md:col-span-4">
+            <div class="glass-card p-5 h-full flex flex-col">
+                <h5 class="text-xs uppercase tracking-widest text-slate-400 dark:text-gray-400 font-bold mb-4">Session
+                    Overview</h5>
+                <h1
+                    class="text-5xl font-bold text-slate-800 dark:text-white text-center py-6 flex-1 flex items-center justify-center">
+                    {{ sessions|length }}</h1>
+                <p class="text-sm text-slate-400 dark:text-gray-400 text-center mb-4">Total Sessions Conducted</p>
+                <button class="w-full btn-outline rounded-xl py-2 text-xs"
+                    onclick="document.getElementById('sessionList').classList.toggle('hidden')">
+                    Show Sessions <i class="fas fa-chevron-down ml-1"></i>
+                </button>
+                <div class="hidden mt-3" id="sessionList">
+                    <div class="space-y-1.5">
+                        {% for session in sessions %}
+                        <div
+                            class="flex justify-between text-xs py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-[#1C1F2B]/40">
+                            <span class="text-slate-600 dark:text-gray-300">{{ session['session_date'] }}</span>
+                            <span class="text-slate-400 dark:text-gray-400">{{ session['session_time'] }}</span>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-8 mb-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-bold">Student Summary</h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive" style="max-height: 500px;">
-                    <table class="table table-hover mb-0 align-middle">
-                        <thead class="bg-light sticky-top">
-                            <tr>
-                                <th class="ps-4">Student Name</th>
-                                <th>ID</th>
-                                <th class="text-center">Present</th>
-                                <th class="text-center">%</th>
-                                <th class="pe-4">Progress</th>
+        <!-- Student Summary -->
+        <div class="md:col-span-8">
+            <div class="glass-card overflow-hidden h-full">
+                <div class="px-5 py-4 border-b border-slate-200 dark:border-[#2B2F3A]">
+                    <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200">Student Summary</h5>
+                </div>
+                <div class="overflow-y-auto" style="max-height: 500px;">
+                    <table class="w-full text-sm">
+                        <thead class="sticky top-0 bg-slate-50 dark:bg-card-dark z-10">
+                            <tr class="border-b border-slate-200 dark:border-[#2B2F3A]">
+                                <th
+                                    class="text-left ps-5 py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Student Name</th>
+                                <th
+                                    class="text-left py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                                    ID</th>
+                                <th
+                                    class="text-center py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Present</th>
+                                <th
+                                    class="text-center py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                                    %</th>
+                                <th
+                                    class="pe-5 py-3 font-semibold text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wider">
+                                    Progress</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for student in summary %}
                             {% set percentage = (student['present_count'] / student['total_sessions'] * 100)|int if
                             student['total_sessions'] > 0 else 0 %}
-                            <tr>
-                                <td class="ps-4 fw-medium">{{ student['name'] }}</td>
-                                <td class="text-muted small">{{ student['student_id'] }}</td>
-                                <td class="text-center fw-bold">{{ student['present_count'] }}/{{
-                                    student['total_sessions'] }}</td>
+                            <tr class="border-b border-slate-100 dark:border-[#2B2F3A]/60">
+                                <td class="ps-5 py-3 font-medium text-slate-800 dark:text-white text-sm">{{
+                                    student['name'] }}</td>
+                                <td class="py-3 text-xs text-slate-400 dark:text-gray-400">{{ student['student_id'] }}
+                                </td>
+                                <td class="text-center py-3 font-bold text-xs text-slate-700 dark:text-gray-200">{{
+                                    student['present_count'] }}/{{ student['total_sessions'] }}</td>
                                 <td
-                                    class="text-center fw-bold {{ 'text-success' if percentage >= 75 else 'text-danger' }}">
+                                    class="text-center py-3 font-bold text-xs {{ 'text-emerald-500' if percentage >= 75 else 'text-red-400' }}">
                                     {{ percentage }}%</td>
-                                <td class="pe-4" style="width: 30%;">
-                                    <div class="progress" style="height: 6px;">
-                                        <div class="progress-bar {{ 'bg-success' if percentage >= 75 else 'bg-danger' }}"
-                                            role="progressbar" style="width: {{ percentage }}%"></div>
+                                <td class="pe-5 py-3" style="width: 30%;">
+                                    <div class="progress-bar-bg h-1.5 rounded-full">
+                                        <div class="h-full rounded-full transition-all duration-500 {{ 'bg-emerald-500' if percentage >= 75 else 'bg-red-400' }}"
+                                            style="width: {{ percentage }}%"></div>
                                     </div>
                                 </td>
                             </tr>

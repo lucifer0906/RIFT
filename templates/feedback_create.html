@@ -1,92 +1,88 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Create Feedback Form - CampaFi{% endblock %}
+{% block title %}Create Feedback Form - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center fade-in">
-    <div class="col-lg-8">
-        <div class="card shadow border-0">
-            <div class="card-header bg-white border-bottom-0 pb-0 pt-4 px-4">
-                <div class="d-flex align-items-center">
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-light rounded-circle me-3"><i
-                            class="fas fa-arrow-left"></i></a>
-                    <h3 class="mb-0 fw-bold">New Feedback Form</h3>
+<div class="animate-fade-in max-w-2xl mx-auto">
+    <div class="glass-card">
+        <div class="px-6 pt-5 pb-2 flex items-center gap-3">
+            <a href="{{ url_for('dashboard') }}"
+                class="w-9 h-9 rounded-full bg-slate-100 dark:bg-[#2B2F3A]/60 flex items-center justify-center text-slate-500 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors no-underline">
+                <i class="fas fa-arrow-left text-sm"></i>
+            </a>
+            <h3 class="font-bold text-lg text-slate-800 dark:text-white">New Feedback Form</h3>
+        </div>
+        <div class="p-6">
+            <form method="post" id="createForm" class="space-y-4">
+                <div>
+                    <label class="input-label">Form Title</label>
+                    <input type="text" name="title" class="input-field" placeholder="e.g. Course Evaluation Spring 2024"
+                        required>
                 </div>
-            </div>
-
-            <div class="card-body p-4">
-                <form method="post" id="createForm">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Form Title</label>
-                        <input type="text" name="title" class="form-control form-control-lg"
-                            placeholder="e.g. Course Evaluation Spring 2024" required>
+                <div>
+                    <label class="input-label">Description</label>
+                    <textarea name="description" class="input-field resize-none" rows="3"
+                        placeholder="Please provide your honest feedback..."></textarea>
+                </div>
+                <label class="flex items-start gap-2 cursor-pointer">
+                    <input class="mt-1 rounded border-slate-300 dark:border-white/20 text-accent focus:ring-accent"
+                        type="checkbox" name="allow_anonymous" id="allowAnon" checked>
+                    <div>
+                        <span class="text-sm font-medium text-slate-700 dark:text-gray-200">Allow Anonymous
+                            Responses</span>
+                        <p class="text-xs text-slate-400 dark:text-gray-400 mt-0.5">
+                            <i class="fas fa-user-secret mr-1"></i>Anonymous responses are not linked to user IDs on the
+                            blockchain.
+                        </p>
                     </div>
+                </label>
 
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Description</label>
-                        <textarea name="description" class="form-control" rows="3"
-                            placeholder="Please provide your honest feedback..."></textarea>
-                    </div>
+                <hr class="border-slate-200 dark:border-[#2B2F3A] my-5">
 
-                    <div class="mb-4">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="allow_anonymous" id="allowAnon"
-                                checked>
-                            <label class="form-check-label fw-medium" for="allowAnon">Allow Anonymous Responses</label>
+                <div class="flex items-center justify-between mb-3">
+                    <h5 class="font-bold text-sm text-slate-700 dark:text-gray-200">Questions</h5>
+                    <button type="button" class="btn-outline rounded-full px-3 py-1.5 text-xs" onclick="addQuestion()">
+                        <i class="fas fa-plus mr-1"></i> Add Question
+                    </button>
+                </div>
+
+                <div id="questionsContainer" class="space-y-3">
+                    <div
+                        class="rounded-xl p-4 bg-slate-50 dark:bg-[#1C1F2B]/40 border border-slate-100 dark:border-[#2B2F3A] question-item">
+                        <div class="flex items-center justify-between mb-2">
+                            <h6 class="font-bold text-xs text-slate-400 dark:text-gray-400">Question 1</h6>
                         </div>
-                        <div class="form-text mt-1 text-muted small">
-                            <i class="fas fa-user-secret me-1"></i> Anonymous responses are not linked to user IDs on
-                            the blockchain.
+                        <div class="mb-3">
+                            <input type="text" name="questions" class="input-field"
+                                placeholder="Enter your question here" required>
                         </div>
-                    </div>
-
-                    <hr class="my-5">
-
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="fw-bold mb-0">Questions</h5>
-                        <button type="button" class="btn btn-outline-primary btn-sm rounded-pill"
-                            onclick="addQuestion()">
-                            <i class="fas fa-plus me-1"></i> Add Question
-                        </button>
-                    </div>
-
-                    <div id="questionsContainer">
-                        <!-- Questions will be added here -->
-                        <div class="card bg-light border-0 mb-3 question-item">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <h6 class="fw-bold text-muted">Question 1</h6>
-                                </div>
-                                <div class="mb-3">
-                                    <input type="text" name="questions" class="form-control"
-                                        placeholder="Enter your question here" required>
-                                </div>
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <select name="question_types" class="form-select form-select-sm">
-                                            <option value="text">Text Answer</option>
-                                            <option value="rating">Rating (1-5)</option>
-                                            <option value="yesno">Yes/No</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6 d-flex align-items-center">
-                                        <div class="form-check form-switch ms-2">
-                                            <input class="form-check-input" type="checkbox" name="question_required"
-                                                checked>
-                                            <label class="form-check-label small">Required</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select name="question_types" class="input-field text-xs py-2">
+                                <option value="text">Text Answer</option>
+                                <option value="rating">Rating (1-5)</option>
+                                <option value="yesno">Yes/No</option>
+                            </select>
+                            <label class="flex items-center gap-2 cursor-pointer ml-2">
+                                <input
+                                    class="rounded border-slate-300 dark:border-white/20 text-accent focus:ring-accent"
+                                    type="checkbox" name="question_required" checked>
+                                <span class="text-xs text-slate-500 dark:text-gray-400">Required</span>
+                            </label>
                         </div>
                     </div>
+                </div>
 
-                    <div class="d-grid gap-2 mt-5">
-                        <button type="submit" class="btn btn-success btn-lg">Create Form</button>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-light">Cancel</a>
-                    </div>
-                </form>
-            </div>
+                <div class="flex flex-col gap-2 mt-5">
+                    <button type="submit" class="w-full py-3 rounded-xl font-semibold text-sm text-white transition-all"
+                        style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 15px rgba(16,185,129,0.3);">
+                        Create Form
+                    </button>
+                    <a href="{{ url_for('dashboard') }}"
+                        class="w-full py-2.5 text-center rounded-xl text-sm text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-[#1C1F2B]/80 hover:bg-slate-200 dark:hover:bg-white/[0.08] transition-all no-underline">
+                        Cancel
+                    </a>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -98,31 +94,25 @@
         qCount++;
         const container = document.getElementById('questionsContainer');
         const div = document.createElement('div');
-        div.className = 'card bg-light border-0 mb-3 question-item fade-in';
+        div.className = 'rounded-xl p-4 bg-slate-50 dark:bg-[#1C1F2B]/40 border border-slate-100 dark:border-[#2B2F3A] question-item animate-fade-in';
         div.innerHTML = `
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-2">
-                    <h6 class="fw-bold text-muted">Question ${qCount}</h6>
-                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="this.closest('.question-item').remove()"><i class="fas fa-trash"></i></button>
-                </div>
-                <div class="mb-3">
-                    <input type="text" name="questions" class="form-control" placeholder="Enter your question here" required>
-                </div>
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <select name="question_types" class="form-select form-select-sm">
-                            <option value="text">Text Answer</option>
-                            <option value="rating">Rating (1-5)</option>
-                            <option value="yesno">Yes/No</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 d-flex align-items-center">
-                        <div class="form-check form-switch ms-2">
-                            <input class="form-check-input" type="checkbox" name="question_required" checked>
-                            <label class="form-check-label small">Required</label>
-                        </div>
-                    </div>
-                </div>
+            <div class="flex items-center justify-between mb-2">
+                <h6 class="font-bold text-xs text-slate-400 dark:text-gray-400">Question ${qCount}</h6>
+                <button type="button" class="text-red-400 hover:text-red-500 text-xs" onclick="this.closest('.question-item').remove()"><i class="fas fa-trash"></i></button>
+            </div>
+            <div class="mb-3">
+                <input type="text" name="questions" class="input-field" placeholder="Enter your question here" required>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <select name="question_types" class="input-field text-xs py-2">
+                    <option value="text">Text Answer</option>
+                    <option value="rating">Rating (1-5)</option>
+                    <option value="yesno">Yes/No</option>
+                </select>
+                <label class="flex items-center gap-2 cursor-pointer ml-2">
+                    <input class="rounded border-slate-300 dark:border-white/20 text-accent focus:ring-accent" type="checkbox" name="question_required" checked>
+                    <span class="text-xs text-slate-500 dark:text-gray-400">Required</span>
+                </label>
             </div>
         `;
         container.appendChild(div);

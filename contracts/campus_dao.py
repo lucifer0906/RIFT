@@ -9,7 +9,7 @@ Migrated from raw PyTeal to Beaker Application class for AlgoKit compatibility.
 """
 
 from beaker import Application, Authorize
-from beaker.lib.storage import GlobalStateValue
+from beaker.state import GlobalStateValue
 from pyteal import (
     Approve,
     Global,
@@ -17,15 +17,17 @@ from pyteal import (
     Int,
     Seq,
     TxnField,
+    TealType,
     TxnType,
     abi,
+    Expr,
 )
 
 
 class DAOState:
     """Global state schema for the Simple DAO contract."""
     total_disbursements = GlobalStateValue(
-        stack_type=TxnType.uint64,
+        stack_type=TealType.uint64,
         default=Int(0),
         descr="Running count of disbursement transactions",
     )
@@ -35,7 +37,7 @@ app = Application("CampusDAO", state=DAOState())
 
 
 @app.external(authorize=Authorize.only(Global.creator_address()))
-def disburse(receiver: abi.Address, amount: abi.Uint64) -> "Expr":  # noqa: F821
+def disburse(receiver: abi.Address, amount: abi.Uint64) -> Expr:
     """
     Send ALGO from the DAO treasury to *receiver*.
 
@@ -58,12 +60,12 @@ def disburse(receiver: abi.Address, amount: abi.Uint64) -> "Expr":  # noqa: F821
 
 
 @app.delete(authorize=Authorize.only(Global.creator_address()))
-def delete() -> "Expr":  # noqa: F821
+def delete() -> Expr:
     return Approve()
 
 
 @app.clear_state
-def clear_state() -> "Expr":  # noqa: F821
+def clear_state() -> Expr:
     return Approve()
 
 

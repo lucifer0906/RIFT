@@ -1,50 +1,53 @@
 {% extends "base.html" %}
 
-{% block title %}Upload Certificate - CampaFi{% endblock %}
+{% block title %}Upload Certificate - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center fade-in">
-    <div class="col-lg-6">
-        <div class="card shadow border-0">
-            <div class="card-body p-5 text-center">
-                <div class="mb-4">
-                    <div class="bg-primary bg-opacity-10 d-inline-block p-4 rounded-circle">
-                        <i class="fas fa-cloud-upload-alt fa-3x text-primary"></i>
-                    </div>
-                </div>
-                <h3 class="fw-bold mb-2">Upload Certificate</h3>
-                <p class="text-muted mb-4">Secure your academic achievements on the Algorand blockchain.</p>
-
-                <form method="post" enctype="multipart/form-data" class="text-start">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Select Certificate File</label>
-                        <input type="file" name="certificate" class="form-control form-control-lg" required>
-                        <div class="form-text">Supported formats: PDF, JPG, PNG</div>
-                    </div>
-
-                    {% if session.get('role') == 'admin' or user.role == 'admin' %}
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Student ID (Owner)</label>
-                        <input type="text" name="student_id" class="form-control form-control-lg"
-                            placeholder="Enter Student ID associated with this certificate">
-                        <div class="form-text text-warning"><i class="fas fa-exclamation-triangle me-1"></i>Only this
-                            student will be able to claim/upload this file.</div>
-                    </div>
-                    {% endif %}
-
-                    <div class="mb-4 form-check">
-                        <input type="checkbox" class="form-check-input" id="mint_nft" name="mint_nft">
-                        <label class="form-check-label" for="mint_nft">Mint as NFT (Permanent Verification)</label>
-                    </div>
-
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-lock me-2"></i>Upload & Verify
-                        </button>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-light">Cancel</a>
-                    </div>
-                </form>
+<div class="animate-fade-in max-w-lg mx-auto">
+    <div class="glass-card">
+        <div class="p-6 text-center">
+            <div class="icon-ring mx-auto mb-3 w-16 h-16 rounded-2xl bg-accent/10">
+                <i class="fas fa-cloud-upload-alt text-2xl text-accent"></i>
             </div>
+            <h3 class="font-bold text-lg text-slate-800 dark:text-white mb-1">Upload Certificate</h3>
+            <p class="text-sm text-slate-400 dark:text-gray-400 mb-5">Secure your academic achievements on the Algorand
+                blockchain.</p>
+
+            <form method="post" enctype="multipart/form-data" class="text-left space-y-4">
+                <div>
+                    <label class="input-label">Select Certificate File</label>
+                    <input type="file" name="certificate"
+                        class="input-field file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-accent/10 file:text-accent"
+                        required>
+                    <p class="text-xs text-slate-400 dark:text-gray-400 mt-1">Supported formats: PDF, JPG, PNG</p>
+                </div>
+
+                {% if session.get('role') == 'admin' or user.role == 'admin' %}
+                <div>
+                    <label class="input-label">Student ID (Owner)</label>
+                    <input type="text" name="student_id" class="input-field"
+                        placeholder="Enter Student ID associated with this certificate">
+                    <p class="text-xs text-amber-400 mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>Only this
+                        student will be able to claim/upload this file.</p>
+                </div>
+                {% endif %}
+
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox"
+                        class="rounded border-slate-300 dark:border-white/20 text-accent focus:ring-accent"
+                        id="mint_nft" name="mint_nft">
+                    <span class="text-sm text-slate-700 dark:text-gray-200">Mint as NFT (Permanent Verification)</span>
+                </label>
+
+                <div class="flex flex-col gap-2 pt-2">
+                    <button type="submit" class="w-full py-3 rounded-xl font-semibold text-sm text-white transition-all"
+                        style="background: linear-gradient(135deg, #667eea, #764ba2); box-shadow: 0 4px 15px rgba(102,126,234,0.3);">
+                        <i class="fas fa-lock mr-2"></i>Upload & Verify
+                    </button>
+                    <a href="{{ url_for('dashboard') }}"
+                        class="w-full py-2.5 text-center rounded-xl text-sm text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-[#1C1F2B]/80 hover:bg-slate-200 dark:hover:bg-white/[0.08] transition-all no-underline">Cancel</a>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -1,55 +1,64 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Create Attendance Session - CampaFi{% endblock %}
+{% block title %}Create Attendance - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center fade-in">
-    <div class="col-lg-6">
-        <div class="card shadow border-0">
-            <div class="card-header bg-white border-bottom-0 pb-0 pt-4 px-4">
-                <div class="d-flex align-items-center">
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-light rounded-circle me-3"><i
-                            class="fas fa-arrow-left"></i></a>
-                    <h3 class="mb-0 fw-bold">New Attendance Session</h3>
+<div class="animate-fade-in max-w-2xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">Create Attendance Session</h1>
+        <p class="text-slate-500 dark:text-gray-400">Generate a new QR code for checking in on CollegePay</p>
+    </div>
+    <div class="glass-card">
+        <div class="px-6 pt-5 pb-2 flex items-center gap-3">
+            <a href="{{ url_for('dashboard') }}"
+                class="w-9 h-9 rounded-full bg-slate-100 dark:bg-[#2B2F3A]/60 flex items-center justify-center text-slate-500 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors no-underline">
+                <i class="fas fa-arrow-left text-sm"></i>
+            </a>
+            <h3 class="font-bold text-lg text-slate-800 dark:text-white">New Attendance Session</h3>
+        </div>
+        <div class="p-6">
+            <form method="post" class="space-y-4">
+                <div>
+                    <label class="input-label">Course Code / Name</label>
+                    <input type="text" name="course_code" class="input-field"
+                        placeholder="e.g. CS101 - Intro to Programming" required>
                 </div>
-            </div>
-            <div class="card-body p-4">
-                <form method="post">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Course Code / Name</label>
-                        <input type="text" name="course_code" class="form-control form-control-lg"
-                            placeholder="e.g. CS101 - Intro to Programming" required>
-                    </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
-                            <label class="form-label fw-bold">Date</label>
-                            <input type="date" name="session_date" class="form-control" required>
-                        </div>
-                        <div class="col-md-6 mb-4">
-                            <label class="form-label fw-bold">Time</label>
-                            <input type="time" name="session_time" class="form-control" required>
-                        </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="input-label">Date</label>
+                        <input type="date" name="session_date" class="input-field" required>
                     </div>
+                    <div>
+                        <label class="input-label">Time</label>
+                        <input type="time" name="session_time" class="input-field" required>
+                    </div>
+                </div>
 
-                    <div class="mb-4">
-                        <label for="duration" class="form-label fw-bold">Duration (minutes)</label>
-                        <input type="number" class="form-control" id="duration" name="duration" value="60" min="5"
-                            max="240" required>
-                        <div class="form-text">Students must check in within this time window.</div>
-                    </div>
+                <div>
+                    <label for="duration" class="input-label">Duration (minutes)</label>
+                    <input type="number" class="input-field" id="duration" name="duration" value="60" min="5" max="240"
+                        required>
+                    <small class="text-xs text-slate-400 dark:text-gray-400">Students must check in within this time
+                        window.</small>
+                </div>
 
-                    <div class="alert alert-info border-0 shadow-sm">
-                        <i class="fas fa-info-circle me-2"></i> This session will be recorded on the blockchain. Once
-                        created, students can check-in.
-                    </div>
+                <div class="rounded-xl p-3 bg-cyan-500/5 border border-cyan-400/20 text-xs text-cyan-300">
+                    <i class="fas fa-info-circle mr-2"></i> This session will be recorded on the blockchain. Once
+                    created, students can check-in.
+                </div>
 
-                    <div class="d-grid gap-2 mt-4">
-                        <button type="submit" class="btn btn-success btn-lg">Create Session</button>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-light">Cancel</a>
-                    </div>
-                </form>
-            </div>
+                <div class="flex flex-col gap-2 mt-2">
+                    <button type="submit" class="w-full py-3 rounded-xl font-semibold text-sm text-white transition-all"
+                        style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 15px rgba(16,185,129,0.3);">
+                        Create Session
+                    </button>
+                    <a href="{{ url_for('dashboard') }}"
+                        class="w-full py-2.5 text-center rounded-xl text-sm text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-[#1C1F2B]/80 hover:bg-slate-200 dark:hover:bg-white/[0.08] transition-all no-underline">
+                        Cancel
+                    </a>
+                </div>
+            </form>
         </div>
     </div>
 </div>

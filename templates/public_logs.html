@@ -1,88 +1,90 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Network Activity - CampaFi{% endblock %}
+{% block title %}Network Activity - CollegePay{% endblock %}
 
 {% block content %}
-<div class="row fade-in">
-    <div class="col-12 mb-4">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Network Activity</li>
-            </ol>
-        </nav>
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="fw-bold mb-0">Network Activity</h2>
-            <div>
-                <a href="{{ url_for('download_logs') }}" class="btn btn-outline-primary rounded-pill me-2">
-                    <i class="fas fa-file-csv me-2"></i>Download CSV
-                </a>
-                <span class="badge bg-primary rounded-pill">{{ logs|length }} Entries</span>
-            </div>
+<div class="animate-fade-in">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-4">
+        <a href="{{ url_for('dashboard') }}" class="text-accent hover:underline">Dashboard</a>
+        <span class="text-slate-400 mx-2">/</span>
+        <span class="text-slate-500 dark:text-gray-400 font-medium">Network Activity</span>
+    </nav>
+
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
+        <h2 class="text-page text-slate-800 dark:text-white">Network Activity</h2>
+        <div class="flex items-center gap-3 mt-3 sm:mt-0">
+            <a href="{{ url_for('download_logs') }}" class="btn-outline rounded-full px-4 py-2 text-xs no-underline">
+                <i class="fas fa-file-csv mr-2"></i>Download CSV
+            </a>
+            <span class="px-3 py-1 rounded-full text-xs font-bold bg-accent/10 text-accent">{{ logs|length }}
+                Entries</span>
         </div>
     </div>
 
     <!-- Logs Table -->
-    <div class="col-12">
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="border-0 px-4 py-3">Timestamp</th>
-                                <th class="border-0 px-4 py-3">User</th>
-                                <th class="border-0 px-4 py-3">Action</th>
-                                <th class="border-0 px-4 py-3">Details</th>
-                                <th class="border-0 px-4 py-3">TX ID</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for log in logs %}
-                            <tr>
-                                <td class="px-4 py-3 text-muted small" style="width: 180px;">
-                                    {{ log['timestamp'].replace('T', ' ')[:19] }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-circle sm bg-secondary me-2">
-                                            {{ log['user_name'][:1] if log['user_name'] else '?' }}
-                                        </div>
-                                        <span class="fw-medium">{{ log['user_name'] }}</span>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <span class="badge bg-light text-dark border">
-                                        {{ log['action'] }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-secondary">
-                                    {{ log['details'] }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    {% if log['tx_id'] and log['tx_id'] != 'None' %}
-                                    <a href="https://lora.algokit.io/testnet/transaction/{{ log['tx_id'] }}"
-                                        target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2"
-                                        style="font-size: 0.75rem;">
-                                        View TX <i class="fas fa-external-link-alt ms-1"></i>
-                                    </a>
-                                    {% else %}
-                                    <span class="text-muted small">-</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
+    <div class="glass-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-[#2B2F3A] bg-slate-50/50 dark:bg-[#1C1F2B]/60">
+                        <th class="text-left px-4 py-3 micro-label">
+                            Timestamp</th>
+                        <th class="text-left px-4 py-3 micro-label">
+                            User</th>
+                        <th class="text-left px-4 py-3 micro-label">
+                            Action</th>
+                        <th class="text-left px-4 py-3 micro-label">
+                            Details</th>
+                        <th class="text-left px-4 py-3 micro-label">
+                            TX ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr
+                        class="border-b border-slate-100 dark:border-[#2B2F3A]/60 hover:bg-slate-50/50 dark:hover:bg-[#1C1F2B]/60 transition-colors">
+                        <td class="px-4 py-3 text-xs text-slate-400 dark:text-gray-400 whitespace-nowrap">
+                            {{ log['timestamp'].replace('T', ' ')[:19] }}
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <div
+                                    class="w-7 h-7 rounded-full bg-accent/10 text-accent font-bold text-xs flex items-center justify-center mr-2">
+                                    {{ log['user_name'][:1] if log['user_name'] else '?' }}
+                                </div>
+                                <span class="font-medium text-slate-700 dark:text-gray-200 text-xs">{{ log['user_name']
+                                    }}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span
+                                class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-[#2B2F3A]/60 text-slate-600 dark:text-gray-300">
+                                {{ log['action'] }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-slate-500 dark:text-gray-400">{{ log['details'] }}</td>
+                        <td class="px-4 py-3">
+                            {% if log['tx_id'] and log['tx_id'] != 'None' %}
+                            <a href="https://lora.algokit.io/testnet/transaction/{{ log['tx_id'] }}" target="_blank"
+                                class="inline-flex items-center text-[10px] text-accent hover:underline no-underline">
+                                View TX <i class="fas fa-external-link-alt ml-1"></i>
+                            </a>
                             {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">
-                                    <i class="fas fa-clipboard-list fa-3x mb-3 opacity-25"></i>
-                                    <p class="mb-0">No transactions recorded yet.</p>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                            <span class="text-xs text-slate-300 dark:text-gray-600">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-12">
+                            <i class="fas fa-clipboard-list text-3xl text-slate-300 dark:text-gray-600 mb-3 block"></i>
+                            <p class="text-sm text-slate-400 dark:text-gray-400">No transactions recorded yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

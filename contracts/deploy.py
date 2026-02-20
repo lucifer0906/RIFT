@@ -44,7 +44,7 @@ def _register_contracts():
 
     CONTRACTS["campus_bank"] = bank_app
     CONTRACTS["campus_dao"] = dao_app
-    CONTRACTS["certificate_store"] = cert_app
+    # CONTRACTS["certificate_store"] = cert_app
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +74,7 @@ def deploy_all(only: str | None = None):
     import os
     from algosdk import mnemonic as mn
     from algosdk.v2client.algod import AlgodClient
+    from algosdk.atomic_transaction_composer import AccountTransactionSigner
     from algokit_utils import ApplicationClient, get_algod_client
 
     _register_contracts()
@@ -85,16 +86,31 @@ def deploy_all(only: str | None = None):
         sys.exit(1)
 
     private_key = mn.to_private_key(deployer_mnemonic)
+    signer = AccountTransactionSigner(private_key)
     algod = get_algod_client()          # reads ALGOD_ADDRESS / ALGOD_TOKEN from env
 
     for name, beaker_app in targets.items():
         print(f"\n🚀  Deploying {name} …")
         client = ApplicationClient(
-            client=algod,
-            app=beaker_app,
-            signer=private_key,
+            algod_client=algod,
+            app_spec=beaker_app.build(),
+            signer=signer,
         )
-        app_id, app_addr, txid = client.create()
+        result = client.create()
+        
+        # ApplicationClient updates its state with the new App ID and Address
+        app_id = client.app_id
+        app_addr = client.app_address
+        txid = result.tx_id
+
+        print(f"  ✅  App ID : {app_id}")
+        print(f"  📌  Address: {app_addr}")
+        print(f"  🔗  TxID   : {txid}")
+
+        # Persist app id so the web app can read it
+        id_file = pathlib.Path(__file__).parent / "artifacts" / name / "app_id.txt"
+        id_file.write_text(str(app_id))
+
         print(f"  ✅  App ID : {app_id}")
         print(f"  📌  Address: {app_addr}")
         print(f"  🔗  TxID   : {txid}")

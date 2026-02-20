@@ -20,6 +20,9 @@ from pyteal import (
     Reject,
     Seq,
     abi,
+    Expr,
+    Pop,
+    Assert,
 )
 
 
@@ -27,7 +30,7 @@ app = Application("CertificateStore")
 
 
 @app.external
-def add_certificate(cert_hash: abi.String, metadata: abi.String) -> "Expr":  # noqa: F821
+def add_certificate(cert_hash: abi.String, metadata: abi.String) -> Expr:
     """
     Store a certificate hash with associated metadata in a box.
 
@@ -41,35 +44,36 @@ def add_certificate(cert_hash: abi.String, metadata: abi.String) -> "Expr":  # n
 
 
 @app.external(authorize=Authorize.only(Global.creator_address()))
-def delete_certificate(cert_hash: abi.String) -> "Expr":  # noqa: F821
+def delete_certificate(cert_hash: abi.String) -> Expr:
     """Delete a certificate box – creator / admin only."""
     return Seq(
-        App.box_delete(cert_hash.get()),
+        Pop(App.box_delete(cert_hash.get())),
         Approve(),
     )
 
 
 @app.external(read_only=True)
-def verify_certificate(cert_hash: abi.String, *, output: abi.Bool) -> "Expr":  # noqa: F821
+def verify_certificate(cert_hash: abi.String, *, output: abi.Bool) -> Expr:
     """
     Returns ``True`` if a box with the given hash exists, ``False`` otherwise.
+    Uses box_length to check existence without loading the entire content.
     """
-    exists = App.box_get(cert_hash.get())
+    # App.box_length returns a MaybeValue (length, exists)
+    # We only care if it exists.
+    length = App.box_length(cert_hash.get())
     return Seq(
-        exists,
-        If(exists.hasValue())
-        .Then(output.set(Int(1)))
-        .Else(output.set(Int(0))),
+        Assert(length.hasValue()),
+        output.set(Int(1))
     )
 
 
 @app.delete(authorize=Authorize.only(Global.creator_address()))
-def delete() -> "Expr":  # noqa: F821
+def delete() -> Expr:
     return Approve()
 
 
 @app.clear_state
-def clear_state() -> "Expr":  # noqa: F821
+def clear_state() -> Expr:
     return Approve()
 
 

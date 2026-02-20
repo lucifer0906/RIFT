@@ -1,0 +1,112 @@
+#pragma version 8
+intcblock 0 1
+bytecblock 0x746f74616c5f64697362757273656d656e7473
+txn NumAppArgs
+intc_0 // 0
+==
+bnz main_l6
+txna ApplicationArgs 0
+pushbytes 0x61730ee2 // "disburse(address,uint64)void"
+==
+bnz main_l5
+txna ApplicationArgs 0
+pushbytes 0x24378d3c // "delete()void"
+==
+bnz main_l4
+err
+main_l4:
+txn OnCompletion
+pushint 5 // DeleteApplication
+==
+txn ApplicationID
+intc_0 // 0
+!=
+&&
+assert
+callsub deletecaster_3
+intc_1 // 1
+return
+main_l5:
+txn OnCompletion
+intc_0 // NoOp
+==
+txn ApplicationID
+intc_0 // 0
+!=
+&&
+assert
+callsub disbursecaster_2
+intc_1 // 1
+return
+main_l6:
+txn OnCompletion
+intc_0 // NoOp
+==
+bnz main_l8
+err
+main_l8:
+txn ApplicationID
+intc_0 // 0
+==
+assert
+intc_1 // 1
+return
+
+// disburse
+disburse_0:
+proto 2 0
+txn Sender
+global CreatorAddress
+==
+// unauthorized
+assert
+itxn_begin
+intc_1 // pay
+itxn_field TypeEnum
+frame_dig -2
+itxn_field Receiver
+frame_dig -1
+itxn_field Amount
+intc_0 // 0
+itxn_field Fee
+itxn_submit
+bytec_0 // "total_disbursements"
+bytec_0 // "total_disbursements"
+app_global_get
+intc_1 // 1
++
+app_global_put
+intc_1 // 1
+return
+
+// delete
+delete_1:
+proto 0 0
+txn Sender
+global CreatorAddress
+==
+// unauthorized
+assert
+intc_1 // 1
+return
+
+// disburse_caster
+disbursecaster_2:
+proto 0 0
+pushbytes 0x // ""
+intc_0 // 0
+txna ApplicationArgs 1
+frame_bury 0
+txna ApplicationArgs 2
+btoi
+frame_bury 1
+frame_dig 0
+frame_dig 1
+callsub disburse_0
+retsub
+
+// delete_caster
+deletecaster_3:
+proto 0 0
+callsub delete_1
+retsub

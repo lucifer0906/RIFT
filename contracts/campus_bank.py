@@ -9,7 +9,7 @@ Migrated from raw PyTeal to Beaker Application class for AlgoKit compatibility.
 """
 
 from beaker import Application, Authorize
-from beaker.lib.storage import GlobalStateValue
+from beaker.state import GlobalStateValue
 from pyteal import (
     Approve,
     Global,
@@ -18,15 +18,17 @@ from pyteal import (
     Reject,
     Seq,
     TxnField,
+    TealType,
     TxnType,
     abi,
+    Expr,
 )
 
 
 class BankState:
     """Global state schema for the Simple Bank contract."""
     total_deposits = GlobalStateValue(
-        stack_type=TxnType.uint64,
+        stack_type=TealType.uint64,
         default=Int(0),
         descr="Running total of deposits in microAlgos",
     )
@@ -36,7 +38,7 @@ app = Application("CampusBank", state=BankState())
 
 
 @app.external
-def deposit(*, output: abi.Uint64) -> "Expr":  # noqa: F821
+def deposit(*, output: abi.Uint64) -> Expr:
     """
     Accept an ALGO deposit.
 
@@ -55,7 +57,7 @@ def deposit(*, output: abi.Uint64) -> "Expr":  # noqa: F821
 
 
 @app.external(authorize=Authorize.only(Global.creator_address()))
-def withdraw(receiver: abi.Address, amount: abi.Uint64) -> "Expr":  # noqa: F821
+def withdraw(receiver: abi.Address, amount: abi.Uint64) -> Expr:
     """
     Withdraw ALGO from the contract – creator only.
 
@@ -75,13 +77,13 @@ def withdraw(receiver: abi.Address, amount: abi.Uint64) -> "Expr":  # noqa: F821
 
 
 @app.delete(authorize=Authorize.only(Global.creator_address()))
-def delete() -> "Expr":  # noqa: F821
+def delete() -> Expr:
     """Allow only the creator to delete the application."""
     return Approve()
 
 
 @app.clear_state
-def clear_state() -> "Expr":  # noqa: F821
+def clear_state() -> Expr:
     return Approve()
 
 

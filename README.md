@@ -559,7 +559,7 @@ npm run dev       # watch mode for development
 
 ### Dashboard — Your Campus Wallet at a Glance
 
-![CollegePay Dashboard](https://github.com/user-attachments/assets/dashboard-collegepay.png)
+![CollegePay Dashboard](dashboard-collegepay.png)
 
 After connecting your Pera Wallet, the **Dashboard** shows:
 
@@ -574,7 +574,7 @@ After connecting your Pera Wallet, the **Dashboard** shows:
 
 ### Wallet — Advanced Blockchain Features
 
-![CollegePay Wallet](https://github.com/user-attachments/assets/wallet-collegepay.png)
+![CollegePay Wallet](wallet-collegepay.png)
 
 The **Wallet** page gives access to advanced Algorand features:
 
@@ -589,7 +589,7 @@ The **Wallet** page gives access to advanced Algorand features:
 
 ### Create Fungible Token — Token Creator Modal
 
-![Create Token](https://github.com/user-attachments/assets/create-token-collegepay.png)
+![Create Token](create-token-collegepay.png)
 
 The **Create Fungible Token** modal lets any student create a real Algorand Standard Asset:
 
@@ -620,7 +620,7 @@ Hit **Create Asset** → Pera Wallet approval → Token is live on Algorand with
 
 ---
 
-## �👥 Team — Aura Farmers
+## �� Team — Aura Farmers
 
 | Name | Role |
 |---|---|

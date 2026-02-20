@@ -495,6 +495,10 @@ All blockchain calls are mocked — no TestNet ALGO required for testing.
 
 ## 🌍 Deployment
 
+### Live URL: [https://rift-lac.vercel.app/](https://rift-lac.vercel.app/)
+
+Deployed on **Vercel** as a serverless Python function.
+
 ### Local Development
 
 ```bash
@@ -502,15 +506,30 @@ python app.py
 # → http://127.0.0.1:5000 (debug mode)
 ```
 
-### Production (Heroku / Railway / Render)
+### Vercel Deployment
 
-```bash
-# Procfile already configured:
-# web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 3
+The project is configured for Vercel out of the box:
 
-# Set env vars in hosting dashboard, then:
-git push heroku main
+1. **Push to GitHub** — Vercel auto-deploys on every push to `main`
+2. **Environment Variables** — Set `VERCEL=1` in Vercel dashboard (auto-set by Vercel)
+3. **Config** — `vercel.json` handles routing and the Python serverless function
+4. **Static Files** — CSS, JS, images served via `@vercel/static` builder
+
+```json
+// vercel.json (already configured)
+{
+    "builds": [
+        { "src": "app.py", "use": "@vercel/python" },
+        { "src": "static/**", "use": "@vercel/static" }
+    ]
+}
 ```
+
+**Vercel-specific adaptations:**
+- Database uses `/tmp/campus.db` (Vercel's writable directory)
+- File uploads redirect to `/tmp/uploads/`
+- Beaker/PyTeal imports are skipped (not needed at runtime)
+- File logging is disabled (read-only filesystem)
 
 ### Rebuild Pera Wallet Bundle
 
@@ -518,14 +537,6 @@ git push heroku main
 npm run build     # production build (one-time)
 npm run dev       # watch mode for development
 ```
-
-### MainNet Migration
-
-1. Update `ALGOD_ADDRESS` and `INDEXER_ADDRESS` to mainnet endpoints
-2. Fund wallet with real ALGO
-3. Redeploy contracts via `contracts/deploy.py --deploy`
-4. Redeploy CampusCoin ASA
-5. Update `CAMPUS_COIN_ID` in `.env`
 
 ---
 

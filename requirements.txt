@@ -4,12 +4,8 @@ Werkzeug>=2.3.0
 wheel
 setuptools
 
-# ─── Algorand / AlgoKit ───
-# ─── Algorand / AlgoKit ───
+# ─── Algorand ───
 py-algorand-sdk==2.0.0
-pyteal==0.24.1
-beaker-pyteal==1.1.1
-algokit-utils==2.1.0
 
 # ─── Utilities ───
 python-dotenv>=1.0.0

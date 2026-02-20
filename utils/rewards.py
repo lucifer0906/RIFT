@@ -24,7 +24,10 @@ STATE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "system_st
 # ──────────────────────────────────────────────────────────────────────────
 
 def get_db_connection():
-    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "database", "campus.db")
+    if os.environ.get('VERCEL'):
+        db_path = '/tmp/campus.db'
+    else:
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "database", "campus.db")
     conn = sqlite3.connect(db_path, timeout=30.0)
     conn.row_factory = sqlite3.Row
     return conn
@@ -38,6 +41,8 @@ def load_state() -> dict:
 
 
 def save_state(state: dict):
+    if os.environ.get('VERCEL'):
+        return  # Skip file writes on Vercel (read-only FS)
     with open(STATE_FILE, "w") as f:
         json.dump(state, f, indent=4)
 

@@ -46,7 +46,12 @@ except Exception:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'super-secret-key-change-in-production')
-UPLOAD_FOLDER = 'uploads/certificates'
+
+# On Vercel, only /tmp is writable
+if os.environ.get('VERCEL'):
+    UPLOAD_FOLDER = '/tmp/uploads/certificates'
+else:
+    UPLOAD_FOLDER = 'uploads/certificates'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def get_db_connection():
@@ -365,12 +370,12 @@ def log_transaction(user_id, action, details, tx_id=None):
         conn.commit()
         conn.close()
         
-        # 2. File Logging
-        log_entry = f"[{timestamp}] User: {user_id} | Action: {action} | Details: {details} | TX: {tx_id or 'N/A'}\n"
-        # Use absolute path or relative to CWD
-        log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'transaction_logs.txt')
-        with open(log_path, 'a') as f:
-            f.write(log_entry)
+        # 2. File Logging (skip on Vercel – read-only filesystem)
+        if not os.environ.get('VERCEL'):
+            log_entry = f"[{timestamp}] User: {user_id} | Action: {action} | Details: {details} | TX: {tx_id or 'N/A'}\n"
+            log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'transaction_logs.txt')
+            with open(log_path, 'a') as f:
+                f.write(log_entry)
             
     except Exception as e:
         print(f"Logging failed: {e}")

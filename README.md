@@ -9,6 +9,10 @@
 
 > A decentralized campus management platform with a wallet-first dashboard. Connect Pera Wallet to send/receive ALGO, view token holdings, track transactions, and collaborate in groups — all anchored on Algorand TestNet with zero server-side signing.
 
+### 🔗 Live Demo: [https://rift-lac.vercel.app/](https://rift-lac.vercel.app/)
+
+### 📹 LinkedIn Post: [CollegePay Demo Video](https://www.linkedin.com/posts/gauravst1_this-is-our-project-collegepay-please-ugcPost-7430437600248832000-Y1Tc?utm_source=share&utm_medium=member_desktop&rcm=ACoAAFY0ZbUBOIHC9oOT-Q3YQ1U2-C8Az_2E6nw)
+
 ---
 
 ## Table of Contents
@@ -26,6 +30,8 @@
 - [Deployment](#-deployment)
 - [Security](#-security)
 - [Future Roadmap](#-future-roadmap)
+- [Usage Guide (Screenshots)](#-usage-guide-screenshots)
+- [Known Limitations](#-known-limitations)
 - [Contributing](#-contributing)
 - [License](#-license)
 - [Acknowledgments](#-acknowledgments)
@@ -77,7 +83,7 @@ CollegePay is built around a **wallet-first** design using Algorand blockchain:
 
 ```mermaid
 graph TB
-    subgraph "Client - Browser"
+    subgraph "Client - Browser (Vanilla JS + HTML)"
         A[Dashboard + Wallet UI] --> B[wallet.js – Balance, History, QR, Send]
         B --> C[Pera Wallet Connect – Client-side Signing]
         A --> D[wallet_features.html – ASA, NFT, Contracts]
@@ -207,16 +213,18 @@ Four-tab interface:
 | **Gunicorn** | Production WSGI server |
 | **python-dotenv** | Environment variable management |
 
-### Frontend
+### Frontend (Vanilla JS + HTML — No React/Angular/Vue)
 
 | Technology | Purpose |
 |---|---|
-| **Bootstrap 5.3** | Responsive UI framework |
+| **Vanilla JavaScript** | Core wallet logic, DOM manipulation, API calls — no framework |
+| **HTML + Jinja2** | Server-side templating with Bootstrap layout |
+| **Bootstrap 5.3** | Responsive UI framework (CSS only) |
 | **wallet.js** | Wallet core: balance, history, QR, send, toasts |
+| **algosdk.js 2.7.0 (CDN)** | Client-side transaction building |
 | **Pera Wallet bundle** | Webpack-compiled `@perawallet/connect` |
 | **qrcodejs** | QR code generation for addresses |
 | **Font Awesome 6** | Icons |
-| **Jinja2** | Server-side templating |
 
 ---
 
@@ -539,7 +547,7 @@ npm run dev       # watch mode for development
 
 - [ ] Multi-signature wallets for critical transactions
 - [ ] IPFS integration for large file storage
-- [ ] React Native mobile app with WalletConnect
+- [ ] Mobile-responsive PWA with WalletConnect
 - [ ] MainNet production deployment
 - [ ] Algorand State Proofs for cross-chain verification
 - [ ] Redis caching for frequently accessed data
@@ -547,7 +555,72 @@ npm run dev       # watch mode for development
 
 ---
 
-## 👥 Team — Aura Farmers
+## � Usage Guide (Screenshots)
+
+### Dashboard — Your Campus Wallet at a Glance
+
+![CollegePay Dashboard](https://github.com/user-attachments/assets/dashboard-collegepay.png)
+
+After connecting your Pera Wallet, the **Dashboard** shows:
+
+1. **ALGO Balance** (top-left) — Your live TestNet balance fetched from Algorand in real-time
+2. **Receive QR Code** (center) — Any student can scan this to send you ALGO instantly
+3. **Quick Send** (top-right) — Enter an address + amount and hit Send for fast P2P payments
+4. **Recent Transactions** (bottom) — Shows your last transactions with type (Sent/Received), amount, truncated address, and date. Click **Explorer** to verify any transaction on the blockchain
+
+**How to use:** Connect Pera Wallet → Dashboard auto-loads your balance, QR code, and transaction history. Use Quick Send for instant payments to classmates.
+
+---
+
+### Wallet — Advanced Blockchain Features
+
+![CollegePay Wallet](https://github.com/user-attachments/assets/wallet-collegepay.png)
+
+The **Wallet** page gives access to advanced Algorand features:
+
+1. **Send Payment** (left panel) — Full payment form with receiver address, amount in ALGO, and an optional note. Pera Wallet pops up for approval on every send.
+2. **Create Asset (ASA)** — Mint your own fungible token (e.g., club loyalty points, event tokens). Set name, unit, total supply, and decimals.
+3. **Mint NFT (ARC-3)** — Create a unique non-fungible token (e.g., achievement certificate, hackathon badge) with IPFS metadata support.
+4. **Bank Contract** — Interact with the deployed CampusBank smart contract. Deposit ALGO into the trustless vault or withdraw (admin only).
+
+**How to use:** Navigate to Wallet → Click any card to open its modal → Fill the form → Pera Wallet asks for approval → Transaction confirmed on Algorand TestNet in ~4 seconds.
+
+---
+
+### Create Fungible Token — Token Creator Modal
+
+![Create Token](https://github.com/user-attachments/assets/create-token-collegepay.png)
+
+The **Create Fungible Token** modal lets any student create a real Algorand Standard Asset:
+
+- **Asset Name** — The full name (e.g., "CampusCoin")
+- **Unit Name** — Short ticker symbol, max 8 chars (e.g., "CMP")
+- **Total Supply** — How many tokens exist (e.g., 1,000,000)
+- **Decimals** — Divisibility (0 = whole tokens only, 6 = divisible like ALGO)
+- **URL** — Optional link to token metadata or project page
+
+Hit **Create Asset** → Pera Wallet approval → Token is live on Algorand with a unique Asset ID that anyone can look up on the block explorer.
+
+---
+
+## ⚠️ Known Limitations
+
+| Limitation | Details |
+|---|---|
+| **TestNet Only** | All transactions use Algorand TestNet. No real monetary value. Migration to MainNet requires funded accounts and redeployment. |
+| **SQLite Database** | Not suitable for production-scale concurrent users. On Vercel, the DB resets on each cold start (uses `/tmp`). |
+| **No Persistent Storage on Vercel** | Uploaded certificates and database changes are lost when the serverless function recycles. A production deployment would need PostgreSQL + cloud storage (S3). |
+| **Single Admin Withdrawal** | The CampusBank smart contract only allows the creator (deployer) to withdraw. Multi-sig support is not yet implemented. |
+| **No Real IPFS Upload** | NFT minting requires a pre-existing IPFS URL. The app does not upload files to IPFS — users must use a service like [Pinata](https://pinata.cloud/) or [NFT.Storage](https://nft.storage/) separately. |
+| **Pera Wallet Required** | Users must have the Pera Wallet mobile app installed and switched to TestNet. No other wallet providers (e.g., Defly, Exodus) are supported. |
+| **No Token Transfer UI** | After creating an ASA, there's no built-in UI to transfer/distribute tokens to other students. This must be done via Pera Wallet directly. |
+| **Session-Based Auth** | Wallet authentication uses server-side sessions. Logging out clears the session; there's no JWT or persistent login across devices. |
+| **Face ID Browser Dependency** | Attendance face recognition uses `face-api.js` in-browser, which requires camera permissions and may not work on all browsers/devices. |
+| **No Rate Limiting** | API endpoints lack rate limiting, which could be exploited in a production environment. |
+
+---
+
+## �👥 Team — Aura Farmers
 
 | Name | Role |
 |---|---|
